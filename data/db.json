@@ -1,0 +1,85 @@
+{
+  "sessions": {
+    "b224bbd1-9b01-4d09-b6af-35adac27b3dd": "941fa6d5-1b85-423d-87ba-e46ba582430d",
+    "eeca4bbf-2988-4054-ae51-8238bda96508": "12fd4482-e9cd-4f67-9328-46ac5466e3da",
+    "c220895e-bfba-44d7-9c51-526d3cac3ce7": "941fa6d5-1b85-423d-87ba-e46ba582430d"
+  },
+  "users": [
+    {
+      "id": "941fa6d5-1b85-423d-87ba-e46ba582430d",
+      "username": "admin67",
+      "passwordHash": "41ae7d0c2e7bc2e623daa70f1a90e2be:3b99d487523d9b3ae2701f06a6b4cd65f9cc35a0b474adf614db97d9ed07cf43ffde8a78f87741405eacd370f579aaf7b336cb1f0cba7d2830f39ae6664f21a8",
+      "isAdmin": true,
+      "createdAt": "2026-06-05T08:46:08.097Z"
+    },
+    {
+      "id": "12fd4482-e9cd-4f67-9328-46ac5466e3da",
+      "username": "marius",
+      "passwordHash": "2eb6cab1485618aeff1e8794229f872a:66af5bd06129508eeb43a15f8c1a67db0f0b2b6e3e363a099ede68992f48cf06fee3131570a970fba9b27ea8b481a15c43641ea56873f4240b80a9833c5bb752",
+      "isAdmin": false,
+      "createdAt": "2026-06-05T08:46:08.165Z"
+    }
+  ],
+  "matches": [
+    {
+      "id": "0cf5d694-0cd3-46da-b8ca-4319d1b9a0a6",
+      "externalId": "",
+      "group": "A grupė",
+      "home": "Brazilija",
+      "away": "Kroatija",
+      "kickoffUtc": "2026-06-05T14:46:08.033Z",
+      "venue": "Demo stadionas",
+      "status": "finished",
+      "homeScore": 2,
+      "awayScore": 1,
+      "updatedAt": "2026-06-05T08:46:50.302Z"
+    },
+    {
+      "id": "f4901915-f6cb-40e7-9442-e3e6863938b3",
+      "externalId": "",
+      "group": "B grupė",
+      "home": "Argentina",
+      "away": "Japonija",
+      "kickoffUtc": "2026-06-06T12:46:08.033Z",
+      "venue": "Demo stadionas",
+      "status": "scheduled",
+      "homeScore": null,
+      "awayScore": null,
+      "updatedAt": "2026-06-05T08:46:08.165Z"
+    },
+    {
+      "id": "5e5ad830-3adf-4ff2-9a19-637eb646069f",
+      "externalId": "",
+      "group": "C grupė",
+      "home": "Prancūzija",
+      "away": "Marokas",
+      "kickoffUtc": "2026-06-05T05:46:08.033Z",
+      "venue": "Demo stadionas",
+      "status": "finished",
+      "homeScore": 2,
+      "awayScore": 1,
+      "updatedAt": "2026-06-05T08:46:08.165Z"
+    }
+  ],
+  "predictions": [
+    {
+      "id": "e828b5de-2751-4c6f-8355-b7341816719a",
+      "createdAt": "2026-06-05T08:46:50.250Z",
+      "points": 10,
+      "exact": 1,
+      "winner": 1,
+      "userId": "12fd4482-e9cd-4f67-9328-46ac5466e3da",
+      "matchId": "0cf5d694-0cd3-46da-b8ca-4319d1b9a0a6",
+      "homeScore": 2,
+      "awayScore": 1,
+      "updatedAt": "2026-06-05T08:46:50.250Z"
+    }
+  ],
+  "bonusPredictions": [],
+  "sync": {
+    "lastRunAt": "2026-06-05T09:19:34.148Z",
+    "lastError": "SPORTMONKS_TOKEN nėra nustatytas",
+    "provider": "sportmonks",
+    "enabled": false
+  }
+}

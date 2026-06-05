@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="lt">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Cup Prediction League</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#matches" aria-label="World Cup Prediction League">
+        <span class="brand-mark">WC</span>
+        <span>
+          <strong>Prediction League</strong>
+          <small>Friends World Cup</small>
+        </span>
+      </a>
+      <nav id="nav" class="nav" aria-label="Pagrindinis meniu"></nav>
+      <div class="sidebar-card">
+        <span class="label">Demo prisijungimai</span>
+        <p><b>admin</b> / admin123</p>
+        <p><b>marius</b> / marius123</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">FIFA World Cup Prediction League</p>
+          <h1 id="pageTitle">Prisijungimas</h1>
+        </div>
+        <div id="userPanel" class="user-panel"></div>
+      </header>
+
+      <section id="view" class="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <template id="authTemplate">
+    <div class="auth-grid">
+      <section class="hero-panel">
+        <div class="hero-copy">
+          <p class="eyebrow">Tamsi, greita ir paprasta</p>
+          <h2>Spėkite rezultatus, rinkite taškus ir kilkite lentelėje.</h2>
+          <p>Vienas spėjimas vienoms rungtynėms, automatinis užrakinimas prieš startą, bonusai už turnyro eigą ir aiški admin panelė.</p>
+        </div>
+      </section>
+      <section class="auth-card">
+        <div class="tabs" role="tablist" aria-label="Prisijungimo pasirinkimas">
+          <button class="tab active" data-auth-tab="login" type="button">Prisijungti</button>
+          <button class="tab" data-auth-tab="register" type="button">Registruotis</button>
+        </div>
+        <form id="authForm" class="form">
+          <label>Username
+            <input name="username" autocomplete="username" required minlength="3" placeholder="pvz. jonas">
+          </label>
+          <label>Password
+            <input name="password" type="password" autocomplete="current-password" required minlength="4" placeholder="Slaptažodis">
+          </label>
+          <button class="primary" type="submit">Prisijungti</button>
+          <p id="authMessage" class="message"></p>
+        </form>
+      </section>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
