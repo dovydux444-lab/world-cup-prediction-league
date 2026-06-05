@@ -77,7 +77,7 @@
   ],
   "bonusPredictions": [],
   "sync": {
-    "lastRunAt": "2026-06-05T09:50:34.440Z",
+    "lastRunAt": "2026-06-05T10:49:35.044Z",
     "lastError": "SPORTMONKS_TOKEN nėra nustatytas",
     "provider": "sportmonks",
     "enabled": false

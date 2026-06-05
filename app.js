@@ -19,6 +19,21 @@ const FLAGS = {
   Switzerland: "🇨🇭", Tunisia: "🇹🇳", Turkey: "🇹🇷", Uruguay: "🇺🇾", USA: "🇺🇸", Uzbekistan: "🇺🇿",
 };
 const team = (name) => `<span class="team"><span class="flag">${FLAGS[name] || "🏳️"}</span>${safe(name)}</span>`;
+const TEAM_CODES = {
+  Algeria: "ALG", Argentina: "ARG", Australia: "AUS", Austria: "AUT", Belgium: "BEL", "Bosnia & Herzegovina": "BIH",
+  Brazil: "BRA", Canada: "CAN", "Cape Verde": "CPV", Colombia: "COL", Croatia: "CRO", Curacao: "CUW",
+  "Czech Republic": "CZE", "DR Congo": "COD", Ecuador: "ECU", Egypt: "EGY", England: "ENG", France: "FRA",
+  Germany: "GER", Ghana: "GHA", Haiti: "HAI", Iran: "IRN", Iraq: "IRQ", "Ivory Coast": "CIV",
+  Japan: "JPN", Jordan: "JOR", Mexico: "MEX", Morocco: "MAR", Netherlands: "NED", "New Zealand": "NZL",
+  Norway: "NOR", Panama: "PAN", Paraguay: "PAR", Portugal: "POR", Qatar: "QAT", "Saudi Arabia": "KSA",
+  Scotland: "SCO", Senegal: "SEN", "South Africa": "RSA", "South Korea": "KOR", Spain: "ESP", Sweden: "SWE",
+  Switzerland: "SUI", Tunisia: "TUN", Turkey: "TUR", Uruguay: "URU", USA: "USA", Uzbekistan: "UZB",
+};
+const teamBadge = (name, side = "") => `
+  <span class="team-badge ${side}">
+    <span class="flag-disc">${FLAGS[name] || "🏳️"}</span>
+    <span class="team-copy"><b>${safe(name)}</b><small>${TEAM_CODES[name] || "TBD"}</small></span>
+  </span>`;
 const localDateValue = (iso) => {
   const date = new Date(iso);
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -153,23 +168,64 @@ function userPrediction(matchId) {
   return current.predictions.find((item) => item.matchId === matchId && item.userId === current.user.id);
 }
 
+function statusText(match) {
+  if (match.status === "finished") return "Baigta";
+  if (match.status === "live") return "Live";
+  return match.locked ? "Užrakinta" : "Atvira";
+}
+
+function formatMatchDate(iso) {
+  return new Date(iso).toLocaleDateString("lt-LT", { weekday: "long", month: "long", day: "numeric" });
+}
+
+function groupedMatches(matches, editable) {
+  const groups = matches.reduce((acc, match) => {
+    const key = new Date(match.kickoffUtc).toISOString().slice(0, 10);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(match);
+    return acc;
+  }, {});
+  return Object.entries(groups).map(([date, items]) => `
+    <section class="match-day">
+      <div class="match-day-header">
+        <span>${formatMatchDate(date)}</span>
+        <small>${items.length} rungt.</small>
+      </div>
+      <div class="match-grid">${items.map((match) => matchCard(match, editable)).join("")}</div>
+    </section>`).join("");
+}
+
 function matchCard(match, editable) {
   const prediction = userPrediction(match.id);
   const result = match.status === "finished" ? `${match.homeScore}:${match.awayScore}` : match.status === "live" ? "LIVE" : "-";
   return `
     <article class="match-card">
-      <div>
-        <div class="teams">${team(match.home)} <span class="meta">vs</span> ${team(match.away)}</div>
-        <div class="meta">${safe(match.group)} · ${new Date(match.kickoffUtc).toLocaleString("lt-LT")} · ${safe(match.venue || "")} · <span class="${match.locked ? "locked" : "open"}">${match.locked ? "Užrakinta" : "Atvira spėjimams"}</span></div>
-        ${prediction ? `<div class="meta">Jūsų spėjimas: <b>${prediction.homeScore}:${prediction.awayScore}</b> · Taškai: <b>${prediction.points || 0}</b></div>` : `<div class="meta">Spėjimo dar nėra.</div>`}
+      <div class="match-card-main">
+        <div class="match-top">
+          <span class="stage-chip">${safe(match.group)}</span>
+          <span class="status-chip ${match.locked ? "locked-chip" : "open-chip"}">${statusText(match)}</span>
+        </div>
+        <div class="match-teams">
+          ${teamBadge(match.home, "home")}
+          <div class="versus">
+            <span>${result}</span>
+            <small>${match.status === "finished" ? "FT" : "VS"}</small>
+          </div>
+          ${teamBadge(match.away, "away")}
+        </div>
+        <div class="match-meta">
+          <span>${new Date(match.kickoffUtc).toLocaleString("lt-LT", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+          <span>${safe(match.venue || "Stadionas bus patikslintas")}</span>
+        </div>
+        ${prediction ? `<div class="prediction-summary">Jūsų spėjimas <b>${prediction.homeScore}:${prediction.awayScore}</b><span>${prediction.points || 0} tšk.</span></div>` : `<div class="prediction-summary muted">Spėjimo dar nėra</div>`}
         ${editable ? `
           <form class="prediction-form" data-predict="${match.id}">
-            <label>${FLAGS[match.home] || ""} ${safe(match.home)}<input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
-            <label>${FLAGS[match.away] || ""} ${safe(match.away)}<input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+            <label><span>${TEAM_CODES[match.home] || safe(match.home)}</span><input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+            <span class="score-divider">:</span>
+            <label><span>${TEAM_CODES[match.away] || safe(match.away)}</span><input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
             <button class="primary" type="submit" ${match.locked ? "disabled" : ""}>Išsaugoti</button>
           </form>` : ""}
       </div>
-      <div class="score">${result}</div>
     </article>`;
 }
 
@@ -192,7 +248,7 @@ function attachPredictionForms() {
 function renderPredictions() {
   $("#view").innerHTML = `
     <div class="grid">
-      <section class="panel span-8"><h3>Rungtynių spėjimai</h3><div class="match-list">${current.matches.map((match) => matchCard(match, true)).join("")}</div></section>
+      <section class="panel span-8"><h3>Rungtynių spėjimai</h3><div class="match-list">${groupedMatches(current.matches, true)}</div></section>
       <section class="panel span-4">
         <h3>Turnyro bonusai</h3>
         <form id="bonusForm" class="form">
@@ -219,7 +275,7 @@ function bonusField(type, label, points) {
 }
 
 function renderMatches() {
-  $("#view").innerHTML = `<section class="panel"><h3>Visos rungtynės</h3><div class="match-list">${current.matches.map((match) => matchCard(match, false)).join("")}</div></section>`;
+  $("#view").innerHTML = `<section class="panel"><h3>Visos rungtynės</h3><div class="match-list">${groupedMatches(current.matches, false)}</div></section>`;
 }
 
 function renderLeaderboard() {
