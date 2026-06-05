@@ -8,6 +8,7 @@
 - spėjimai užsirakina serveryje 5 minutes prieš rungtynes;
 - adminas `admin67`;
 - Sportmonks importuoja tikrus World Cup 2026 laikus ir rezultatus;
+- jei nenori mokamo API, galima importuoti paruoštą `world-cup-2026-fixtures.csv` grupių etapo tvarkaraštį;
 - Netlify Scheduled Function kas 5 minutes tikrina live atnaujinimus.
 
 ## Svarbu apie Netlify
@@ -155,13 +156,27 @@ admin123
 ```
 
 4. Eik į `Admin panelė`.
-5. Spausk:
+5. Jei naudoji mokamą Sportmonks API, spausk:
 
 ```text
 Importuoti / atnaujinti iš Sportmonks
 ```
 
 Jei token ir Supabase raktai teisingi, rungtynės bus importuotos.
+
+Jei naudoji nemokamą pusiau automatinį variantą, spausk:
+
+```text
+Importuoti paruoštą World Cup 2026 CSV
+```
+
+Tai importuos grupių etapo rungtynes iš failo:
+
+```text
+world-cup-2026-fixtures.csv
+```
+
+Po to rezultatus po rungtynių įvesi rankiniu būdu admin panelėje, o taškai persiskaičiuos automatiškai.
 
 ## 8. Kaip naudosis draugai
 

@@ -8,6 +8,17 @@ let authMode = "login";
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+const FLAGS = {
+  Algeria: "🇩🇿", Argentina: "🇦🇷", Australia: "🇦🇺", Austria: "🇦🇹", Belgium: "🇧🇪", "Bosnia & Herzegovina": "🇧🇦",
+  Brazil: "🇧🇷", Canada: "🇨🇦", "Cape Verde": "🇨🇻", Colombia: "🇨🇴", Croatia: "🇭🇷", Curacao: "🇨🇼",
+  "Czech Republic": "🇨🇿", "DR Congo": "🇨🇩", Ecuador: "🇪🇨", Egypt: "🇪🇬", England: "🏴", France: "🇫🇷",
+  Germany: "🇩🇪", Ghana: "🇬🇭", Haiti: "🇭🇹", Iran: "🇮🇷", Iraq: "🇮🇶", "Ivory Coast": "🇨🇮",
+  Japan: "🇯🇵", Jordan: "🇯🇴", Mexico: "🇲🇽", Morocco: "🇲🇦", Netherlands: "🇳🇱", "New Zealand": "🇳🇿",
+  Norway: "🇳🇴", Panama: "🇵🇦", Paraguay: "🇵🇾", Portugal: "🇵🇹", Qatar: "🇶🇦", "Saudi Arabia": "🇸🇦",
+  Scotland: "🏴", Senegal: "🇸🇳", "South Africa": "🇿🇦", "South Korea": "🇰🇷", Spain: "🇪🇸", Sweden: "🇸🇪",
+  Switzerland: "🇨🇭", Tunisia: "🇹🇳", Turkey: "🇹🇷", Uruguay: "🇺🇾", USA: "🇺🇸", Uzbekistan: "🇺🇿",
+};
+const team = (name) => `<span class="team"><span class="flag">${FLAGS[name] || "🏳️"}</span>${safe(name)}</span>`;
 const localDateValue = (iso) => {
   const date = new Date(iso);
   date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
@@ -148,13 +159,13 @@ function matchCard(match, editable) {
   return `
     <article class="match-card">
       <div>
-        <div class="teams">${safe(match.home)} <span class="meta">vs</span> ${safe(match.away)}</div>
+        <div class="teams">${team(match.home)} <span class="meta">vs</span> ${team(match.away)}</div>
         <div class="meta">${safe(match.group)} · ${new Date(match.kickoffUtc).toLocaleString("lt-LT")} · ${safe(match.venue || "")} · <span class="${match.locked ? "locked" : "open"}">${match.locked ? "Užrakinta" : "Atvira spėjimams"}</span></div>
         ${prediction ? `<div class="meta">Jūsų spėjimas: <b>${prediction.homeScore}:${prediction.awayScore}</b> · Taškai: <b>${prediction.points || 0}</b></div>` : `<div class="meta">Spėjimo dar nėra.</div>`}
         ${editable ? `
           <form class="prediction-form" data-predict="${match.id}">
-            <label>${safe(match.home)}<input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
-            <label>${safe(match.away)}<input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+            <label>${FLAGS[match.home] || ""} ${safe(match.home)}<input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+            <label>${FLAGS[match.away] || ""} ${safe(match.away)}<input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
             <button class="primary" type="submit" ${match.locked ? "disabled" : ""}>Išsaugoti</button>
           </form>` : ""}
       </div>
@@ -248,6 +259,8 @@ function renderAdmin() {
       <section class="panel span-12">
         <div class="row-actions">
           <button class="success" id="syncBtn" type="button">Importuoti / atnaujinti iš Sportmonks</button>
+          <button class="success" id="defaultCsvBtn" type="button">Importuoti paruoštą World Cup 2026 CSV</button>
+          <label class="ghost upload-btn">Įkelti CSV failą<input id="csvFile" type="file" accept=".csv,text/csv"></label>
           <button class="success" id="recalcBtn" type="button">Perskaičiuoti taškus</button>
           <button class="ghost" id="csvBtn" type="button">Eksportuoti CSV</button>
         </div>
@@ -260,7 +273,7 @@ function renderAdmin() {
 function adminMatchesTable() {
   return `<table><thead><tr><th>Rungtynės</th><th>Rezultatas</th><th>Veiksmai</th></tr></thead><tbody>${current.matches.map((match) => `
     <tr>
-      <td>${safe(match.group)}<br><b>${safe(match.home)} - ${safe(match.away)}</b><br><span class="meta">${new Date(match.kickoffUtc).toLocaleString("lt-LT")} · ${safe(match.status)}</span></td>
+      <td>${safe(match.group)}<br><b>${team(match.home)} - ${team(match.away)}</b><br><span class="meta">${new Date(match.kickoffUtc).toLocaleString("lt-LT")} · ${safe(match.status)}</span></td>
       <td><form class="row-actions result-form" data-result="${match.id}"><input name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="primary" type="submit">Rezultatas</button></form></td>
       <td><button class="ghost" data-edit="${match.id}" type="button">Redaguoti</button></td>
     </tr>`).join("")}</tbody></table>`;
@@ -269,7 +282,7 @@ function adminMatchesTable() {
 function adminPredictionsTable() {
   const rows = current.predictions.map((prediction) => {
     const match = current.matches.find((item) => item.id === prediction.matchId);
-    return `<tr><td>${safe(userName(prediction.userId))}</td><td>${safe(match?.home)} - ${safe(match?.away)}</td><td>${prediction.homeScore}:${prediction.awayScore}</td><td>${prediction.points || 0}</td></tr>`;
+    return `<tr><td>${safe(userName(prediction.userId))}</td><td>${team(match?.home)} - ${team(match?.away)}</td><td>${prediction.homeScore}:${prediction.awayScore}</td><td>${prediction.points || 0}</td></tr>`;
   }).join("");
   return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th></tr></thead><tbody>${rows || `<tr><td colspan="4">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
 }
@@ -313,6 +326,20 @@ function attachAdmin() {
   }));
   $("#syncBtn").addEventListener("click", async () => {
     await request("/api/admin/sync", { method: "POST", body: "{}" });
+    await loadState();
+  });
+  $("#defaultCsvBtn").addEventListener("click", async () => {
+    const csv = await fetch("/world-cup-2026-fixtures.csv").then((response) => response.text());
+    const result = await request("/api/admin/import-csv", { method: "POST", body: JSON.stringify({ csv }) });
+    alert(result.message);
+    await loadState();
+  });
+  $("#csvFile").addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    const result = await request("/api/admin/import-csv", { method: "POST", body: JSON.stringify({ csv: await file.text() }) });
+    alert(result.message);
+    event.currentTarget.value = "";
     await loadState();
   });
   $("#recalcBtn").addEventListener("click", async () => {

@@ -180,12 +180,14 @@ async function getState(user) {
   };
 }
 
-async function sportmonksFetch(endpoint) {
+async function sportmonksFetch(endpoint, params = {}) {
   const token = requireEnv("SPORTMONKS_TOKEN");
   const url = new URL(`https://api.sportmonks.com/v3/football/${endpoint}`);
   url.searchParams.set("api_token", token);
   url.searchParams.set("include", "participants;scores;state;venue");
-  url.searchParams.set("filters", `fixtureLeagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}`);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== "") url.searchParams.set(key, value);
+  });
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Sportmonks ${response.status}: ${await response.text()}`);
   return response.json();
@@ -220,18 +222,126 @@ async function upsertFixture(fixture) {
   });
 }
 
+function parseCsv(csv) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  for (let index = 0; index < csv.length; index += 1) {
+    const char = csv[index];
+    const next = csv[index + 1];
+    if (char === "\"" && quoted && next === "\"") {
+      cell += "\"";
+      index += 1;
+    } else if (char === "\"") {
+      quoted = !quoted;
+    } else if (char === "," && !quoted) {
+      row.push(cell);
+      cell = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(cell);
+      if (row.some((value) => value.trim())) rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+  row.push(cell);
+  if (row.some((value) => value.trim())) rows.push(row);
+  if (!rows.length) return [];
+  const headers = rows.shift().map((header) => header.trim());
+  return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] || ""])));
+}
+
+async function importCsv(csv) {
+  const rows = parseCsv(csv);
+  if (!rows.length) return { ok: false, message: "CSV faile nėra rungtynių." };
+  const matches = rows.map((row) => {
+    const kickoff = new Date(row.kickoff_utc);
+    return {
+      external_id: row.external_id || null,
+      stage: row.stage || "World Cup 2026",
+      home_team: row.home_team,
+      away_team: row.away_team,
+      kickoff_utc: Number.isNaN(kickoff.getTime()) ? "" : kickoff.toISOString(),
+      venue: row.venue || "",
+      status: "scheduled",
+      home_score: null,
+      away_score: null,
+      updated_at: nowIso(),
+    };
+  });
+  if (matches.some((match) => !match.home_team || !match.away_team || !match.kickoff_utc)) {
+    return { ok: false, message: "CSV turi turėti external_id, stage, home_team, away_team, kickoff_utc, venue stulpelius." };
+  }
+  await supabase("matches?stage=eq.Demo&external_id=is.null", { method: "DELETE" });
+  await supabase("matches?on_conflict=external_id", {
+    method: "POST",
+    headers: { prefer: "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify(matches),
+  });
+  await recalculate();
+  await supabase("sync_log", {
+    method: "POST",
+    body: JSON.stringify({ provider: "csv", ok: true, message: `Importuota ${matches.length} rungtynių iš CSV`, created_at: nowIso() }),
+  });
+  return { ok: true, message: `Importuota ${matches.length} rungtynių iš CSV`, created_at: nowIso() };
+}
+
 async function syncSportmonks(mode = "all") {
   try {
-    const endpoint = mode === "latest" ? "livescores/latest" : "fixtures/between/2026-06-01/2026-07-31";
-    let payload = await sportmonksFetch(endpoint);
-    if (!payload.data?.length && mode !== "latest") payload = await sportmonksFetch("livescores");
+    const attempts = mode === "latest"
+      ? [
+        ["livescores/latest", { filters: `fixtureLeagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}` }],
+        ["livescores", { filters: `fixtureLeagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}` }],
+      ]
+      : [
+        ["fixtures/between/date/2026-06-01/2026-07-31", { filters: `fixtureLeagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}` }],
+        ["fixtures/between/date/2026-06-01/2026-07-31", { filters: `leagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}` }],
+        ["fixtures/between/date/2026-06-01/2026-07-31", {}],
+        ["livescores", { filters: `fixtureLeagues:${SPORTMONKS_WORLD_CUP_LEAGUE_ID}` }],
+      ];
+    let payload = { data: [] };
+    let usedEndpoint = "";
+    const errors = [];
+    for (const [endpoint, params] of attempts) {
+      try {
+        const candidate = await sportmonksFetch(endpoint, params);
+        if (candidate.data?.length) {
+          payload = candidate;
+          usedEndpoint = `${endpoint}${params.filters ? `?filters=${params.filters}` : ""}`;
+          break;
+        }
+        errors.push(`${endpoint}: 0 rungtynių`);
+      } catch (error) {
+        errors.push(`${endpoint}: ${error.message}`);
+      }
+    }
     await Promise.all((payload.data || []).map(upsertFixture));
+    if (payload.data?.length) {
+      await supabase("matches?stage=eq.Demo&external_id=is.null", { method: "DELETE" });
+    }
     await recalculate();
     await supabase("sync_log", {
       method: "POST",
-      body: JSON.stringify({ provider: "sportmonks", ok: true, message: `Atnaujinta ${payload.data?.length || 0} rungtynių`, created_at: nowIso() }),
+      body: JSON.stringify({
+        provider: "sportmonks",
+        ok: Boolean(payload.data?.length),
+        message: payload.data?.length
+          ? `Atnaujinta ${payload.data.length} rungtynių per ${usedEndpoint}`
+          : `Sportmonks grąžino 0 rungtynių. Bandymai: ${errors.join(" | ")}`,
+        created_at: nowIso(),
+      }),
     });
-    return { ok: true, message: `Atnaujinta ${payload.data?.length || 0} rungtynių`, created_at: nowIso() };
+    return {
+      ok: Boolean(payload.data?.length),
+      message: payload.data?.length
+        ? `Atnaujinta ${payload.data.length} rungtynių per ${usedEndpoint}`
+        : `Sportmonks grąžino 0 rungtynių. Bandymai: ${errors.join(" | ")}`,
+      created_at: nowIso(),
+    };
   } catch (error) {
     await supabase("sync_log", {
       method: "POST",
@@ -341,6 +451,8 @@ exports.handler = async (event) => {
     }
 
     if (pathname === "/admin/sync" && method === "POST") return json(200, await syncSportmonks("all"));
+
+    if (pathname === "/admin/import-csv" && method === "POST") return json(200, await importCsv(String(body.csv || "")));
 
     if (pathname === "/admin/recalculate" && method === "POST") {
       await recalculate();
