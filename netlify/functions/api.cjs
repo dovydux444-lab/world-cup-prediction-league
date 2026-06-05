@@ -86,14 +86,16 @@ function scorePrediction(match, prediction) {
   }
   const actualHome = Number(match.home_score);
   const actualAway = Number(match.away_score);
+  const actualDiff = actualHome - actualAway;
+  const actualSign = Math.sign(actualDiff);
+  const type = prediction.prediction_type || "exact";
+  if (type === "outcome") {
+    const outcomeSign = prediction.outcome === "home" ? 1 : prediction.outcome === "away" ? -1 : 0;
+    return actualSign === outcomeSign ? { points: 2, exact: 0, winner: 1 } : { points: 0, exact: 0, winner: 0 };
+  }
   const pickHome = Number(prediction.home_score);
   const pickAway = Number(prediction.away_score);
-  const actualDiff = actualHome - actualAway;
-  const pickDiff = pickHome - pickAway;
-  const actualSign = Math.sign(actualDiff);
-  const pickSign = Math.sign(pickDiff);
   if (actualHome === pickHome && actualAway === pickAway) return { points: 7, exact: 1, winner: 1 };
-  if (actualSign === pickSign) return { points: 2, exact: 0, winner: 1 };
   return { points: 0, exact: 0, winner: 0 };
 }
 
@@ -159,6 +161,8 @@ async function getState(user) {
       id: prediction.id,
       userId: prediction.user_id,
       matchId: prediction.match_id,
+      predictionType: prediction.prediction_type || "exact",
+      outcome: prediction.outcome || null,
       homeScore: prediction.home_score,
       awayScore: prediction.away_score,
       points: prediction.points,
@@ -390,14 +394,26 @@ exports.handler = async (event) => {
       const match = await one(`matches?id=eq.${encodeURIComponent(body.matchId)}&select=*`);
       if (!match) return json(404, { error: "Rungtynės nerastos." });
       if (isLocked(match)) return json(423, { error: "Spėjimas užrakintas 5 minutės prieš rungtynes." });
-      const homeScore = Number(body.homeScore);
-      const awayScore = Number(body.awayScore);
-      if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0) return json(400, { error: "Įveskite teisingą rezultatą." });
-      await supabase("predictions?on_conflict=user_id,match_id", {
-        method: "POST",
-        headers: { prefer: "resolution=merge-duplicates,return=representation" },
-        body: JSON.stringify({ user_id: user.id, match_id: match.id, home_score: homeScore, away_score: awayScore, updated_at: nowIso() }),
-      });
+      const existing = await one(`predictions?user_id=eq.${user.id}&match_id=eq.${match.id}&select=id`);
+      if (existing) return json(423, { error: "Šis spėjimas jau užrakintas. Keisti gali tik adminas." });
+      const predictionType = body.predictionType === "outcome" ? "outcome" : "exact";
+      const payload = { user_id: user.id, match_id: match.id, prediction_type: predictionType, updated_at: nowIso() };
+      if (predictionType === "outcome") {
+        if (!["home", "draw", "away"].includes(body.outcome)) return json(400, { error: "Pasirinkite baigtį." });
+        payload.outcome = body.outcome;
+        payload.home_score = null;
+        payload.away_score = null;
+      } else {
+        const homeScore = Number(body.homeScore);
+        const awayScore = Number(body.awayScore);
+        if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore > 12 || awayScore > 12) {
+          return json(400, { error: "Tikslus rezultatas turi būti nuo 0 iki 12." });
+        }
+        payload.outcome = null;
+        payload.home_score = homeScore;
+        payload.away_score = awayScore;
+      }
+      await supabase("predictions", { method: "POST", body: JSON.stringify(payload) });
       await recalculate();
       return json(200, { ok: true });
     }
@@ -418,6 +434,36 @@ exports.handler = async (event) => {
     }
 
     if (!user.is_admin) return json(403, { error: "Reikia admin teisių." });
+
+    if (pathname === "/admin/prediction" && method === "POST") {
+      const prediction = await one(`predictions?id=eq.${encodeURIComponent(body.id)}&select=*`);
+      if (!prediction) return json(404, { error: "Spėjimas nerastas." });
+      if (body.delete) {
+        await supabase(`predictions?id=eq.${prediction.id}`, { method: "DELETE" });
+        await recalculate();
+        return json(200, { ok: true });
+      }
+      const predictionType = body.predictionType === "outcome" ? "outcome" : "exact";
+      const payload = { prediction_type: predictionType, updated_at: nowIso() };
+      if (predictionType === "outcome") {
+        if (!["home", "draw", "away"].includes(body.outcome)) return json(400, { error: "Pasirinkite baigtį." });
+        payload.outcome = body.outcome;
+        payload.home_score = null;
+        payload.away_score = null;
+      } else {
+        const homeScore = Number(body.homeScore);
+        const awayScore = Number(body.awayScore);
+        if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0 || homeScore > 12 || awayScore > 12) {
+          return json(400, { error: "Tikslus rezultatas turi būti nuo 0 iki 12." });
+        }
+        payload.outcome = null;
+        payload.home_score = homeScore;
+        payload.away_score = awayScore;
+      }
+      await supabase(`predictions?id=eq.${prediction.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      await recalculate();
+      return json(200, { ok: true });
+    }
 
     if (pathname === "/admin/matches" && method === "POST") {
       const payload = {

@@ -195,9 +195,23 @@ function statusText(match) {
 
 function pickFromScore(prediction) {
   if (!prediction) return "";
+  if (prediction.predictionType === "outcome") return prediction.outcome || "";
   if (Number(prediction.homeScore) > Number(prediction.awayScore)) return "home";
   if (Number(prediction.homeScore) < Number(prediction.awayScore)) return "away";
   return "draw";
+}
+
+function scoreOptions(value = "") {
+  return Array.from({ length: 13 }, (_, number) => `<option value="${number}" ${Number(value) === number ? "selected" : ""}>${number}</option>`).join("");
+}
+
+function predictionText(prediction, match) {
+  if (!prediction) return "";
+  if (prediction.predictionType === "outcome") {
+    const labels = { home: `${match.home} laimės`, draw: "Lygiosios", away: `${match.away} laimės` };
+    return `Baigtis: ${labels[prediction.outcome] || "-"}`;
+  }
+  return `Tikslus rezultatas: ${prediction.homeScore}:${prediction.awayScore}`;
 }
 
 function formatMatchDate(iso) {
@@ -244,27 +258,36 @@ function matchCard(match, editable) {
           <span>${new Date(match.kickoffUtc).toLocaleString("lt-LT", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
           <span>${safe(match.venue || "Stadionas bus patikslintas")}</span>
         </div>
-        ${prediction ? `<div class="prediction-summary">Jūsų spėjimas <b>${prediction.homeScore}:${prediction.awayScore}</b><span>${prediction.points || 0} tšk.</span></div>` : `<div class="prediction-summary muted">Spėjimo dar nėra</div>`}
-        ${editable ? `
+        ${prediction ? `
+          <div class="prediction-summary locked-summary">
+            <small>Jūsų spėjimas</small>
+            <b>${predictionText(prediction, match)}</b>
+            <span>Užrakinta · ${prediction.points || 0} tšk.</span>
+            <em>Keisti gali tik adminas, jei paprašysi iki rungtynių.</em>
+          </div>` : `<div class="prediction-summary muted">Spėjimo dar nėra</div>`}
+        ${editable && !prediction ? `
           <form class="prediction-form" data-predict="${match.id}">
+            <div class="prediction-choice-title">Spėti tik baigtį <span>2 tšk.</span></div>
             <div class="winner-picker" role="radiogroup" aria-label="Baigties pasirinkimas">
-              <button class="pick-option ${selectedPick === "home" ? "selected" : ""}" type="button" data-pick="home" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-pick="home" data-mode="outcome" ${match.locked ? "disabled" : ""}>
                 ${flagImg(match.home)}<span>${TEAM_CODES[match.home] || safe(match.home)}</span>
               </button>
-              <button class="pick-option ${selectedPick === "draw" ? "selected" : ""}" type="button" data-pick="draw" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-pick="draw" data-mode="outcome" ${match.locked ? "disabled" : ""}>
                 <span class="draw-mark">X</span><span>Lygiosios</span>
               </button>
-              <button class="pick-option ${selectedPick === "away" ? "selected" : ""}" type="button" data-pick="away" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-pick="away" data-mode="outcome" ${match.locked ? "disabled" : ""}>
                 ${flagImg(match.away)}<span>${TEAM_CODES[match.away] || safe(match.away)}</span>
               </button>
             </div>
-            <input type="hidden" name="pick" value="${selectedPick}">
+            <div class="prediction-choice-title">Arba spėti tikslų rezultatą <span>7 tšk.</span></div>
             <div class="score-pick">
-            <label><span>${TEAM_CODES[match.home] || safe(match.home)}</span><input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
-            <span class="score-divider">:</span>
-            <label><span>${TEAM_CODES[match.away] || safe(match.away)}</span><input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+              <label><span>${TEAM_CODES[match.home] || safe(match.home)}</span><select name="homeScore" ${match.locked ? "disabled" : ""}>${scoreOptions()}</select></label>
+              <span class="score-divider">:</span>
+              <label><span>${TEAM_CODES[match.away] || safe(match.away)}</span><select name="awayScore" ${match.locked ? "disabled" : ""}>${scoreOptions()}</select></label>
             </div>
-            <button class="primary" type="submit" ${match.locked ? "disabled" : ""}>Išsaugoti</button>
+            <div class="row-actions">
+              <button class="primary" type="submit" data-save-mode="exact" ${match.locked ? "disabled" : ""}>Išsaugoti tikslų rezultatą</button>
+            </div>
           </form>` : ""}
       </div>
     </article>`;
@@ -274,47 +297,27 @@ function attachPredictionForms() {
   $$("[data-predict] .pick-option").forEach((button) => button.addEventListener("click", () => {
     const form = button.closest("[data-predict]");
     const pick = button.dataset.pick;
-    const home = form.elements.homeScore;
-    const away = form.elements.awayScore;
-    form.elements.pick.value = pick;
-    $$(".pick-option", form).forEach((item) => item.classList.toggle("selected", item === button));
-    if (pick === "home" && Number(home.value || 0) <= Number(away.value || 0)) {
-      home.value = 2;
-      away.value = 1;
-    }
-    if (pick === "draw" && home.value !== away.value) {
-      home.value = 1;
-      away.value = 1;
-    }
-    if (pick === "away" && Number(away.value || 0) <= Number(home.value || 0)) {
-      home.value = 1;
-      away.value = 2;
-    }
+    savePrediction(form.dataset.predict, { predictionType: "outcome", outcome: pick });
   }));
   $$("[data-predict]").forEach((form) => form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(form);
     const homeScore = Number(data.get("homeScore"));
     const awayScore = Number(data.get("awayScore"));
-    const pick = String(data.get("pick") || "");
-    if (!pick) {
-      alert("Pirmiausia pasirinkite, kas laimės: pirma komanda, lygiosios arba antra komanda.");
-      return;
-    }
-    if ((pick === "home" && homeScore <= awayScore) || (pick === "away" && awayScore <= homeScore) || (pick === "draw" && homeScore !== awayScore)) {
-      alert("Tikslus rezultatas turi atitikti pasirinktą baigtį.");
-      return;
-    }
-    try {
-      await request("/api/predictions", {
-        method: "POST",
-        body: JSON.stringify({ matchId: form.dataset.predict, homeScore, awayScore }),
-      });
-      await loadState();
-    } catch (error) {
-      alert(error.message);
-    }
+    savePrediction(form.dataset.predict, { predictionType: "exact", homeScore, awayScore });
   }));
+}
+
+async function savePrediction(matchId, payload) {
+  try {
+    await request("/api/predictions", {
+      method: "POST",
+      body: JSON.stringify({ matchId, ...payload }),
+    });
+    await loadState();
+  } catch (error) {
+    alert(error.message);
+  }
 }
 
 function renderPredictions() {
@@ -392,11 +395,11 @@ function renderRules() {
         <h3>Kaip žaisti</h3>
         <div class="rules-list">
           <div class="rule-step"><b>1</b><span>Vienoje rungtynių kortelėje padarai vieną spėjimą.</span></div>
-          <div class="rule-step"><b>2</b><span>Pasirink baigtį: pirma komanda laimės, lygiosios arba antra komanda laimės.</span></div>
-          <div class="rule-step"><b>3</b><span>Jei nori kovoti dėl maksimumo, įrašyk tikslų rezultatą, pvz. <b>2:1</b> arba <b>1:1</b>.</span></div>
-          <div class="rule-step"><b>4</b><span>Vienoms rungtynėms gali turėti tik vieną spėjimą. Iki užrakinimo gali jį pakeisti.</span></div>
-          <div class="rule-step"><b>5</b><span>Spėjimai užsirakina 5 minutės prieš rungtynių pradžią.</span></div>
-          <div class="rule-step"><b>6</b><span>Po rungtynių adminas įveda rezultatą, o sistema automatiškai paskaičiuoja taškus.</span></div>
+          <div class="rule-step"><b>2</b><span>Gali rinktis vieną iš dviejų kelių: spėti tik baigtį arba spėti tikslų rezultatą.</span></div>
+          <div class="rule-step"><b>3</b><span>Baigtis reiškia: pirma komanda laimės, lygiosios arba antra komanda laimės. Už pataikymą gauni 2 taškus.</span></div>
+          <div class="rule-step"><b>4</b><span>Tikslus rezultatas reiškia, kad turi idealiai pataikyti skaičius, pvz. <b>2:1</b>. Už pataikymą gauni 7 taškus.</span></div>
+          <div class="rule-step"><b>5</b><span>Paspaudus išsaugoti, spėjimas užsirakina iš karto. Jei reikia taisyti iki rungtynių, reikia kreiptis į adminą.</span></div>
+          <div class="rule-step"><b>6</b><span>Po rungtynių adminas įveda galutinį rezultatą, o sistema automatiškai paskaičiuoja taškus.</span></div>
         </div>
       </section>
       <section class="panel span-5">
@@ -408,8 +411,8 @@ function renderRules() {
         <h3>Taškų sistema</h3>
         <div class="score-rules">
           ${ruleCard("7", "Tikslus rezultatas", "Spėjai 2:1, rungtynės baigėsi 2:1. Gauni 7 taškus.")}
-          ${ruleCard("2", "Teisinga baigtis", "Spėjai, kad Brazilija laimės, ir ji laimėjo. Rezultatas netikslus, bet gauni 2 taškus.")}
-          ${ruleCard("2", "Teisingos lygiosios", "Spėjai lygiosios 1:1, baigėsi 2:2. Baigtis teisinga, gauni 2 taškus.")}
+          ${ruleCard("2", "Teisinga baigtis", "Pasirinkai, kad Brazilija laimės, ir ji laimėjo. Tikslaus rezultato čia nereikia.")}
+          ${ruleCard("2", "Teisingos lygiosios", "Pasirinkai lygiosios, rungtynės baigėsi 2:2. Gauni 2 taškus.")}
           ${ruleCard("0", "Nepataikyta", "Spėjai, kad pirma komanda laimės, bet laimėjo antra komanda arba buvo lygiosios.")}
         </div>
       </section>
@@ -473,9 +476,38 @@ function adminMatchesTable() {
 function adminPredictionsTable() {
   const rows = current.predictions.map((prediction) => {
     const match = current.matches.find((item) => item.id === prediction.matchId);
-    return `<tr><td>${safe(userName(prediction.userId))}</td><td>${team(match?.home)} - ${team(match?.away)}</td><td>${prediction.homeScore}:${prediction.awayScore}</td><td>${prediction.points || 0}</td></tr>`;
+    return `<tr>
+      <td>${safe(userName(prediction.userId))}</td>
+      <td>${team(match?.home)} - ${team(match?.away)}</td>
+      <td>${predictionText(prediction, match)}</td>
+      <td>${prediction.points || 0}</td>
+      <td>${adminPredictionControls(prediction)}</td>
+    </tr>`;
   }).join("");
-  return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th></tr></thead><tbody>${rows || `<tr><td colspan="4">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
+  return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th><th>Admin</th></tr></thead><tbody>${rows || `<tr><td colspan="5">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
+}
+
+function adminPredictionControls(prediction) {
+  return `<form class="admin-prediction-form stack" data-admin-prediction="${prediction.id}">
+    <select name="predictionType">
+      <option value="outcome" ${prediction.predictionType === "outcome" ? "selected" : ""}>Baigtis</option>
+      <option value="exact" ${prediction.predictionType !== "outcome" ? "selected" : ""}>Tikslus rezultatas</option>
+    </select>
+    <select name="outcome">
+      <option value="home" ${prediction.outcome === "home" ? "selected" : ""}>Pirma komanda</option>
+      <option value="draw" ${prediction.outcome === "draw" ? "selected" : ""}>Lygiosios</option>
+      <option value="away" ${prediction.outcome === "away" ? "selected" : ""}>Antra komanda</option>
+    </select>
+    <div class="score-pick compact">
+      <select name="homeScore">${scoreOptions(prediction.homeScore ?? 0)}</select>
+      <span class="score-divider">:</span>
+      <select name="awayScore">${scoreOptions(prediction.awayScore ?? 0)}</select>
+    </div>
+    <div class="row-actions">
+      <button class="primary" type="submit">Pakeisti</button>
+      <button class="danger" type="button" data-delete-prediction="${prediction.id}">Trinti</button>
+    </div>
+  </form>`;
 }
 
 function adminBonusTable() {
@@ -517,6 +549,28 @@ function attachAdmin() {
   }));
   $$("[data-bonus]").forEach((box) => box.addEventListener("change", async () => {
     await request("/api/admin/bonus-award", { method: "POST", body: JSON.stringify({ id: box.dataset.bonus, awarded: box.checked }) });
+    await loadState();
+  }));
+  $$(".admin-prediction-form").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(form));
+    await request("/api/admin/prediction", {
+      method: "POST",
+      body: JSON.stringify({
+        id: form.dataset.adminPrediction,
+        predictionType: data.predictionType,
+        outcome: data.outcome,
+        homeScore: Number(data.homeScore),
+        awayScore: Number(data.awayScore),
+      }),
+    });
+    await loadState();
+  }));
+  $$("[data-delete-prediction]").forEach((button) => button.addEventListener("click", async () => {
+    await request("/api/admin/prediction", {
+      method: "POST",
+      body: JSON.stringify({ id: button.dataset.deletePrediction, delete: true }),
+    });
     await loadState();
   }));
   $("#syncBtn").addEventListener("click", async () => {

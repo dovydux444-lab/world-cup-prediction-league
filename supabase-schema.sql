@@ -32,13 +32,20 @@ create table if not exists public.predictions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.users(id) on delete cascade,
   match_id uuid not null references public.matches(id) on delete cascade,
-  home_score integer not null check (home_score >= 0),
-  away_score integer not null check (away_score >= 0),
+  prediction_type text not null default 'exact' check (prediction_type in ('outcome', 'exact')),
+  outcome text check (outcome in ('home', 'draw', 'away')),
+  home_score integer check (home_score >= 0 and home_score <= 12),
+  away_score integer check (away_score >= 0 and away_score <= 12),
   points integer not null default 0,
   exact integer not null default 0,
   winner integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  check (
+    (prediction_type = 'outcome' and outcome is not null and home_score is null and away_score is null)
+    or
+    (prediction_type = 'exact' and outcome is null and home_score is not null and away_score is not null)
+  ),
   unique (user_id, match_id)
 );
 
