@@ -18,7 +18,22 @@ const FLAGS = {
   Scotland: "🏴", Senegal: "🇸🇳", "South Africa": "🇿🇦", "South Korea": "🇰🇷", Spain: "🇪🇸", Sweden: "🇸🇪",
   Switzerland: "🇨🇭", Tunisia: "🇹🇳", Turkey: "🇹🇷", Uruguay: "🇺🇾", USA: "🇺🇸", Uzbekistan: "🇺🇿",
 };
-const team = (name) => `<span class="team"><span class="flag">${FLAGS[name] || "🏳️"}</span>${safe(name)}</span>`;
+const FLAG_CODES = {
+  Algeria: "dz", Argentina: "ar", Australia: "au", Austria: "at", Belgium: "be", "Bosnia & Herzegovina": "ba",
+  Brazil: "br", Canada: "ca", "Cape Verde": "cv", Colombia: "co", Croatia: "hr", Curacao: "cw",
+  "Czech Republic": "cz", "DR Congo": "cd", Ecuador: "ec", Egypt: "eg", England: "gb-eng", France: "fr",
+  Germany: "de", Ghana: "gh", Haiti: "ht", Iran: "ir", Iraq: "iq", "Ivory Coast": "ci",
+  Japan: "jp", Jordan: "jo", Mexico: "mx", Morocco: "ma", Netherlands: "nl", "New Zealand": "nz",
+  Norway: "no", Panama: "pa", Paraguay: "py", Portugal: "pt", Qatar: "qa", "Saudi Arabia": "sa",
+  Scotland: "gb-sct", Senegal: "sn", "South Africa": "za", "South Korea": "kr", Spain: "es", Sweden: "se",
+  Switzerland: "ch", Tunisia: "tn", Turkey: "tr", Uruguay: "uy", USA: "us", Uzbekistan: "uz",
+};
+const flagImg = (name, className = "flag-img") => {
+  const code = FLAG_CODES[name];
+  if (!code) return `<span class="${className} fallback">${FLAGS[name] || "🏳️"}</span>`;
+  return `<img class="${className}" src="https://flagcdn.com/w80/${code}.png" srcset="https://flagcdn.com/w160/${code}.png 2x" alt="${safe(name)} flag" loading="lazy">`;
+};
+const team = (name) => `<span class="team">${flagImg(name)}${safe(name)}</span>`;
 const TEAM_CODES = {
   Algeria: "ALG", Argentina: "ARG", Australia: "AUS", Austria: "AUT", Belgium: "BEL", "Bosnia & Herzegovina": "BIH",
   Brazil: "BRA", Canada: "CAN", "Cape Verde": "CPV", Colombia: "COL", Croatia: "CRO", Curacao: "CUW",
@@ -31,7 +46,7 @@ const TEAM_CODES = {
 };
 const teamBadge = (name, side = "") => `
   <span class="team-badge ${side}">
-    <span class="flag-disc">${FLAGS[name] || "🏳️"}</span>
+    <span class="flag-disc">${flagImg(name, "flag-photo")}</span>
     <span class="team-copy"><b>${safe(name)}</b><small>${TEAM_CODES[name] || "TBD"}</small></span>
   </span>`;
 const localDateValue = (iso) => {
@@ -174,6 +189,13 @@ function statusText(match) {
   return match.locked ? "Užrakinta" : "Atvira";
 }
 
+function pickFromScore(prediction) {
+  if (!prediction) return "";
+  if (Number(prediction.homeScore) > Number(prediction.awayScore)) return "home";
+  if (Number(prediction.homeScore) < Number(prediction.awayScore)) return "away";
+  return "draw";
+}
+
 function formatMatchDate(iso) {
   return new Date(iso).toLocaleDateString("lt-LT", { weekday: "long", month: "long", day: "numeric" });
 }
@@ -198,6 +220,7 @@ function groupedMatches(matches, editable) {
 function matchCard(match, editable) {
   const prediction = userPrediction(match.id);
   const result = match.status === "finished" ? `${match.homeScore}:${match.awayScore}` : match.status === "live" ? "LIVE" : "-";
+  const selectedPick = pickFromScore(prediction);
   return `
     <article class="match-card">
       <div class="match-card-main">
@@ -220,9 +243,23 @@ function matchCard(match, editable) {
         ${prediction ? `<div class="prediction-summary">Jūsų spėjimas <b>${prediction.homeScore}:${prediction.awayScore}</b><span>${prediction.points || 0} tšk.</span></div>` : `<div class="prediction-summary muted">Spėjimo dar nėra</div>`}
         ${editable ? `
           <form class="prediction-form" data-predict="${match.id}">
+            <div class="winner-picker" role="radiogroup" aria-label="Baigties pasirinkimas">
+              <button class="pick-option ${selectedPick === "home" ? "selected" : ""}" type="button" data-pick="home" ${match.locked ? "disabled" : ""}>
+                ${flagImg(match.home)}<span>${TEAM_CODES[match.home] || safe(match.home)}</span>
+              </button>
+              <button class="pick-option ${selectedPick === "draw" ? "selected" : ""}" type="button" data-pick="draw" ${match.locked ? "disabled" : ""}>
+                <span class="draw-mark">X</span><span>Lygiosios</span>
+              </button>
+              <button class="pick-option ${selectedPick === "away" ? "selected" : ""}" type="button" data-pick="away" ${match.locked ? "disabled" : ""}>
+                ${flagImg(match.away)}<span>${TEAM_CODES[match.away] || safe(match.away)}</span>
+              </button>
+            </div>
+            <input type="hidden" name="pick" value="${selectedPick}">
+            <div class="score-pick">
             <label><span>${TEAM_CODES[match.home] || safe(match.home)}</span><input type="number" min="0" max="20" name="homeScore" value="${prediction?.homeScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
             <span class="score-divider">:</span>
             <label><span>${TEAM_CODES[match.away] || safe(match.away)}</span><input type="number" min="0" max="20" name="awayScore" value="${prediction?.awayScore ?? ""}" ${match.locked ? "disabled" : ""} required></label>
+            </div>
             <button class="primary" type="submit" ${match.locked ? "disabled" : ""}>Išsaugoti</button>
           </form>` : ""}
       </div>
@@ -230,13 +267,44 @@ function matchCard(match, editable) {
 }
 
 function attachPredictionForms() {
+  $$("[data-predict] .pick-option").forEach((button) => button.addEventListener("click", () => {
+    const form = button.closest("[data-predict]");
+    const pick = button.dataset.pick;
+    const home = form.elements.homeScore;
+    const away = form.elements.awayScore;
+    form.elements.pick.value = pick;
+    $$(".pick-option", form).forEach((item) => item.classList.toggle("selected", item === button));
+    if (pick === "home" && Number(home.value || 0) <= Number(away.value || 0)) {
+      home.value = 2;
+      away.value = 1;
+    }
+    if (pick === "draw" && home.value !== away.value) {
+      home.value = 1;
+      away.value = 1;
+    }
+    if (pick === "away" && Number(away.value || 0) <= Number(home.value || 0)) {
+      home.value = 1;
+      away.value = 2;
+    }
+  }));
   $$("[data-predict]").forEach((form) => form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(form);
+    const homeScore = Number(data.get("homeScore"));
+    const awayScore = Number(data.get("awayScore"));
+    const pick = String(data.get("pick") || "");
+    if (!pick) {
+      alert("Pirmiausia pasirinkite, kas laimės: pirma komanda, lygiosios arba antra komanda.");
+      return;
+    }
+    if ((pick === "home" && homeScore <= awayScore) || (pick === "away" && awayScore <= homeScore) || (pick === "draw" && homeScore !== awayScore)) {
+      alert("Tikslus rezultatas turi atitikti pasirinktą baigtį.");
+      return;
+    }
     try {
       await request("/api/predictions", {
         method: "POST",
-        body: JSON.stringify({ matchId: form.dataset.predict, homeScore: Number(data.get("homeScore")), awayScore: Number(data.get("awayScore")) }),
+        body: JSON.stringify({ matchId: form.dataset.predict, homeScore, awayScore }),
       });
       await loadState();
     } catch (error) {
