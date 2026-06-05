@@ -40,7 +40,11 @@ function requireEnv(name) {
 }
 
 async function supabase(path, options = {}) {
-  const url = `${requireEnv("SUPABASE_URL").replace(/\/$/, "")}/rest/v1/${path}`;
+  const projectUrl = requireEnv("SUPABASE_URL")
+    .trim()
+    .replace(/\/rest\/v1\/?$/i, "")
+    .replace(/\/$/, "");
+  const url = `${projectUrl}/rest/v1/${path}`;
   const key = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
   const response = await fetch(url, {
     ...options,
