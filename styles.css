@@ -110,6 +110,19 @@ button { cursor: pointer; }
 
 .sidebar-card p { margin: 8px 0 0; color: var(--muted); }
 
+.participant-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.participant-row:last-child { border-bottom: 0; }
+.participant-row b { color: var(--text); }
+.participant-row span { color: var(--gold); font-weight: 850; }
+
 .main { min-width: 0; padding: 26px; }
 
 .topbar {
@@ -533,6 +546,11 @@ input:focus, select:focus {
   border-color: rgba(248,198,90,.75);
   background: linear-gradient(135deg, rgba(248,198,90,.22), rgba(53,208,186,.14));
   box-shadow: 0 0 0 3px rgba(248,198,90,.08);
+}
+
+.pick-option:not(:disabled):hover {
+  border-color: rgba(248,198,90,.52);
+  background: rgba(248,198,90,.1);
 }
 
 .pick-option:disabled { opacity: .5; cursor: not-allowed; }

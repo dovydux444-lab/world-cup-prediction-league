@@ -119,7 +119,6 @@ async function recalculate() {
 }
 
 async function getState(user) {
-  await recalculate();
   const [matches, predictions, bonuses, users, syncRows] = await Promise.all([
     supabase("matches?select=*&order=kickoff_utc.asc"),
     supabase(user.is_admin ? "predictions?select=*" : `predictions?user_id=eq.${user.id}&select=*`),

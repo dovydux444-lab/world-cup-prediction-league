@@ -1,4 +1,4 @@
-const API = "";
+﻿const API = "";
 const tokenKey = "wcPredictionLeague.token";
 
 let token = localStorage.getItem(tokenKey) || "";
@@ -6,19 +6,20 @@ let current = null;
 let authMode = "login";
 let selectedAdminUserId = "";
 let adminClock = null;
+let stateTimer = null;
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const safe = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
 const FLAGS = {
-  Algeria: "🇩🇿", Argentina: "🇦🇷", Australia: "🇦🇺", Austria: "🇦🇹", Belgium: "🇧🇪", "Bosnia & Herzegovina": "🇧🇦",
-  Brazil: "🇧🇷", Canada: "🇨🇦", "Cape Verde": "🇨🇻", Colombia: "🇨🇴", Croatia: "🇭🇷", Curacao: "🇨🇼",
-  "Czech Republic": "🇨🇿", "DR Congo": "🇨🇩", Ecuador: "🇪🇨", Egypt: "🇪🇬", England: "🏴", France: "🇫🇷",
-  Germany: "🇩🇪", Ghana: "🇬🇭", Haiti: "🇭🇹", Iran: "🇮🇷", Iraq: "🇮🇶", "Ivory Coast": "🇨🇮",
-  Japan: "🇯🇵", Jordan: "🇯🇴", Mexico: "🇲🇽", Morocco: "🇲🇦", Netherlands: "🇳🇱", "New Zealand": "🇳🇿",
-  Norway: "🇳🇴", Panama: "🇵🇦", Paraguay: "🇵🇾", Portugal: "🇵🇹", Qatar: "🇶🇦", "Saudi Arabia": "🇸🇦",
-  Scotland: "🏴", Senegal: "🇸🇳", "South Africa": "🇿🇦", "South Korea": "🇰🇷", Spain: "🇪🇸", Sweden: "🇸🇪",
-  Switzerland: "🇨🇭", Tunisia: "🇹🇳", Turkey: "🇹🇷", Uruguay: "🇺🇾", USA: "🇺🇸", Uzbekistan: "🇺🇿",
+  Algeria: "ðŸ‡©ðŸ‡¿", Argentina: "ðŸ‡¦ðŸ‡·", Australia: "ðŸ‡¦ðŸ‡º", Austria: "ðŸ‡¦ðŸ‡¹", Belgium: "ðŸ‡§ðŸ‡ª", "Bosnia & Herzegovina": "ðŸ‡§ðŸ‡¦",
+  Brazil: "ðŸ‡§ðŸ‡·", Canada: "ðŸ‡¨ðŸ‡¦", "Cape Verde": "ðŸ‡¨ðŸ‡»", Colombia: "ðŸ‡¨ðŸ‡´", Croatia: "ðŸ‡­ðŸ‡·", Curacao: "ðŸ‡¨ðŸ‡¼",
+  "Czech Republic": "ðŸ‡¨ðŸ‡¿", "DR Congo": "ðŸ‡¨ðŸ‡©", Ecuador: "ðŸ‡ªðŸ‡¨", Egypt: "ðŸ‡ªðŸ‡¬", England: "ðŸ´", France: "ðŸ‡«ðŸ‡·",
+  Germany: "ðŸ‡©ðŸ‡ª", Ghana: "ðŸ‡¬ðŸ‡­", Haiti: "ðŸ‡­ðŸ‡¹", Iran: "ðŸ‡®ðŸ‡·", Iraq: "ðŸ‡®ðŸ‡¶", "Ivory Coast": "ðŸ‡¨ðŸ‡®",
+  Japan: "ðŸ‡¯ðŸ‡µ", Jordan: "ðŸ‡¯ðŸ‡´", Mexico: "ðŸ‡²ðŸ‡½", Morocco: "ðŸ‡²ðŸ‡¦", Netherlands: "ðŸ‡³ðŸ‡±", "New Zealand": "ðŸ‡³ðŸ‡¿",
+  Norway: "ðŸ‡³ðŸ‡´", Panama: "ðŸ‡µðŸ‡¦", Paraguay: "ðŸ‡µðŸ‡¾", Portugal: "ðŸ‡µðŸ‡¹", Qatar: "ðŸ‡¶ðŸ‡¦", "Saudi Arabia": "ðŸ‡¸ðŸ‡¦",
+  Scotland: "ðŸ´", Senegal: "ðŸ‡¸ðŸ‡³", "South Africa": "ðŸ‡¿ðŸ‡¦", "South Korea": "ðŸ‡°ðŸ‡·", Spain: "ðŸ‡ªðŸ‡¸", Sweden: "ðŸ‡¸ðŸ‡ª",
+  Switzerland: "ðŸ‡¨ðŸ‡­", Tunisia: "ðŸ‡¹ðŸ‡³", Turkey: "ðŸ‡¹ðŸ‡·", Uruguay: "ðŸ‡ºðŸ‡¾", USA: "ðŸ‡ºðŸ‡¸", Uzbekistan: "ðŸ‡ºðŸ‡¿",
 };
 const FLAG_CODES = {
   Algeria: "dz", Argentina: "ar", Australia: "au", Austria: "at", Belgium: "be", "Bosnia & Herzegovina": "ba",
@@ -32,7 +33,7 @@ const FLAG_CODES = {
 };
 const flagImg = (name, className = "flag-img") => {
   const code = FLAG_CODES[name];
-  if (!code) return `<span class="${className} fallback">${FLAGS[name] || "🏳️"}</span>`;
+  if (!code) return `<span class="${className} fallback">${FLAGS[name] || "ðŸ³ï¸"}</span>`;
   return `<img class="${className}" src="https://flagcdn.com/w80/${code}.png" srcset="https://flagcdn.com/w160/${code}.png 2x" alt="${safe(name)} flag" loading="lazy">`;
 };
 const team = (name) => `<span class="team">${flagImg(name)}${safe(name)}</span>`;
@@ -68,7 +69,7 @@ async function request(path, options = {}) {
   });
   const isCsv = response.headers.get("content-type")?.includes("text/csv");
   const payload = isCsv ? await response.text() : await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || "Įvyko klaida.");
+  if (!response.ok) throw new Error(payload.error || "Ä®vyko klaida.");
   return payload;
 }
 
@@ -81,14 +82,26 @@ async function loadState() {
   render();
 }
 
+function renderParticipants() {
+  const target = $("#participantsList");
+  if (!target) return;
+  if (!current?.standings?.length) {
+    target.innerHTML = `<p>Prisijunkite, kad matytumÄ—te dalyvius.</p>`;
+    return;
+  }
+  target.innerHTML = current.standings.map((user, index) => `
+    <p class="participant-row"><b>#${index + 1} ${safe(user.username)}</b><span>${user.points} tÅ¡k.</span></p>
+  `).join("");
+}
+
 function renderServerRequired() {
   $("#nav").innerHTML = `<button class="active">Paleidimas</button>`;
-  $("#pageTitle").textContent = "Reikia paleisti serverį";
+  $("#pageTitle").textContent = "Reikia paleisti serverÄ¯";
   $("#userPanel").innerHTML = `<span class="pill">Lokali reali versija</span>`;
   $("#view").innerHTML = `
     <section class="panel">
-      <h3>Šita versija nebeatidaroma tiesiai kaip failas</h3>
-      <p class="message">Kad veiktų prisijungimai, serverinis užrakinimas, automatinis taškų skaičiavimas ir Sportmonks importas, puslapį reikia paleisti per Netlify arba lokalų serverį.</p>
+      <h3>Å ita versija nebeatidaroma tiesiai kaip failas</h3>
+      <p class="message">Kad veiktÅ³ prisijungimai, serverinis uÅ¾rakinimas, automatinis taÅ¡kÅ³ skaiÄiavimas ir Sportmonks importas, puslapÄ¯ reikia paleisti per Netlify arba lokalÅ³ serverÄ¯.</p>
       <div class="stack">
         <label>1. PowerShell komanda
           <input readonly value="cd C:\\Users\\User\\Documents\\Codex\\2026-06-05\\sukurk-moderni-fifa-world-cup-prediction\\outputs">
@@ -96,10 +109,10 @@ function renderServerRequired() {
         <label>2. Paleidimas
           <input readonly value="node server.cjs">
         </label>
-        <label>3. Naršyklės adresas
+        <label>3. NarÅ¡yklÄ—s adresas
           <input readonly value="http://127.0.0.1:4173">
         </label>
-        <p class="message">Įkėlus į Netlify, naudok Netlify duotą svetainės adresą.</p>
+        <p class="message">Ä®kÄ—lus Ä¯ Netlify, naudok Netlify duotÄ… svetainÄ—s adresÄ….</p>
       </div>
     </section>`;
 }
@@ -117,10 +130,11 @@ function render() {
     adminClock = null;
   }
   const route = routeName();
-  const titles = { login: "Prisijungimas", predictions: "Mano spėjimai", matches: "Visų rungtynių sąrašas", finished: "Užbaigti mačai", leaderboard: "Lyderių lentelė", stats: "Mano statistika", rules: "Taisyklės", admin: "Admin panelė" };
+  const titles = { login: "Prisijungimas", predictions: "Mano spÄ—jimai", matches: "VisÅ³ rungtyniÅ³ sÄ…raÅ¡as", finished: "UÅ¾baigti maÄai", leaderboard: "LyderiÅ³ lentelÄ—", stats: "Mano statistika", rules: "TaisyklÄ—s", admin: "Admin panelÄ—" };
   $("#pageTitle").textContent = titles[route] || titles.predictions;
   renderNav(route);
   renderUserPanel();
+  renderParticipants();
   if (route === "login") return renderAuth();
   if (!current) return;
   if (route === "predictions") return renderPredictions();
@@ -134,13 +148,13 @@ function render() {
 
 function renderNav(active) {
   const items = token ? [
-    ["predictions", "Mano spėjimai"],
-    ["matches", "Visos rungtynės"],
-    ["finished", "Užbaigti mačai"],
-    ["leaderboard", "Lyderių lentelė"],
+    ["predictions", "Mano spÄ—jimai"],
+    ["matches", "Visos rungtynÄ—s"],
+    ["finished", "UÅ¾baigti maÄai"],
+    ["leaderboard", "LyderiÅ³ lentelÄ—"],
     ["stats", "Mano statistika"],
-    ["rules", "Taisyklės"],
-    ...(current?.user?.isAdmin ? [["admin", "Admin panelė"]] : []),
+    ["rules", "TaisyklÄ—s"],
+    ...(current?.user?.isAdmin ? [["admin", "Admin panelÄ—"]] : []),
   ] : [["login", "Prisijungimas"]];
   $("#nav").innerHTML = items.map(([id, label]) => `<button class="${id === active ? "active" : ""}" data-route="${id}">${label}</button>`).join("");
   $$("#nav button").forEach((button) => button.addEventListener("click", () => {
@@ -151,8 +165,8 @@ function renderNav(active) {
 
 function renderUserPanel() {
   $("#userPanel").innerHTML = current?.user
-    ? `<span class="pill">${safe(current.user.username)}${current.user.isAdmin ? " · admin" : ""}</span><button class="ghost" id="logoutBtn">Atsijungti</button>`
-    : `<span class="pill">Neprisijungęs</span>`;
+    ? `<span class="pill">${safe(current.user.username)}${current.user.isAdmin ? " Â· admin" : ""}</span><button class="ghost" id="logoutBtn">Atsijungti</button>`
+    : `<span class="pill">NeprisijungÄ™s</span>`;
   $("#logoutBtn")?.addEventListener("click", () => {
     token = "";
     current = null;
@@ -196,7 +210,7 @@ function userPrediction(matchId) {
 function statusText(match) {
   if (match.status === "finished") return "Baigta";
   if (match.status === "live") return "Live";
-  return match.locked ? "Užrakinta" : "Atvira";
+  return match.locked ? "UÅ¾rakinta" : "Atvira";
 }
 
 function pickFromScore(prediction) {
@@ -214,7 +228,7 @@ function scoreOptions(value = "") {
 function predictionText(prediction, match) {
   if (!prediction) return "";
   if (prediction.predictionType === "outcome") {
-    const labels = { home: `${match.home} laimės`, draw: "Lygiosios", away: `${match.away} laimės` };
+    const labels = { home: `${match.home} laimÄ—s`, draw: "Lygiosios", away: `${match.away} laimÄ—s` };
     return `Baigtis: ${labels[prediction.outcome] || "-"}`;
   }
   return `Tikslus rezultatas: ${prediction.homeScore}:${prediction.awayScore}`;
@@ -234,7 +248,7 @@ function lockAge(iso) {
 
 function lockTime(prediction) {
   const iso = prediction.createdAt || prediction.updatedAt;
-  return `<span class="lock-time"><b>${lockAge(iso)}</b><small>${iso ? new Date(iso).toLocaleString("lt-LT") : "-"}</small></span>`;
+  return `<span class="lock-time" data-lock-iso="${safe(iso || "")}"><b>${lockAge(iso)}</b><small>${iso ? new Date(iso).toLocaleString("lt-LT") : "-"}</small></span>`;
 }
 
 function formatMatchDate(iso) {
@@ -283,33 +297,33 @@ function matchCard(match, editable) {
         </div>
         ${prediction ? `
           <div class="prediction-summary locked-summary">
-            <small>Jūsų spėjimas</small>
+            <small>JÅ«sÅ³ spÄ—jimas</small>
             <b>${predictionText(prediction, match)}</b>
-            <span>Užrakinta · ${prediction.points || 0} tšk.</span>
-            <em>Keisti gali tik adminas, jei paprašysi iki rungtynių.</em>
-          </div>` : `<div class="prediction-summary muted">Spėjimo dar nėra</div>`}
+            <span>UÅ¾rakinta Â· ${prediction.points || 0} tÅ¡k.</span>
+            <em>Keisti gali tik adminas, jei papraÅ¡ysi iki rungtyniÅ³.</em>
+          </div>` : `<div class="prediction-summary muted">SpÄ—jimo dar nÄ—ra</div>`}
         ${editable && !prediction ? `
           <form class="prediction-form" data-predict="${match.id}">
-            <div class="prediction-choice-title">Spėti tik baigtį <span>2 tšk.</span></div>
+            <div class="prediction-choice-title">SpÄ—ti tik baigtÄ¯ <span>2 tÅ¡k.</span></div>
             <div class="winner-picker" role="radiogroup" aria-label="Baigties pasirinkimas">
-              <button class="pick-option" type="button" data-pick="home" data-mode="outcome" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-outcome-pick="home" ${match.locked ? "disabled" : ""} title="IÅ¡saugoti baigtÄ¯: ${safe(match.home)} laimÄ—s">
                 ${flagImg(match.home)}<span>${TEAM_CODES[match.home] || safe(match.home)}</span>
               </button>
-              <button class="pick-option" type="button" data-pick="draw" data-mode="outcome" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-outcome-pick="draw" ${match.locked ? "disabled" : ""} title="IÅ¡saugoti baigtÄ¯: lygiosios">
                 <span class="draw-mark">X</span><span>Lygiosios</span>
               </button>
-              <button class="pick-option" type="button" data-pick="away" data-mode="outcome" ${match.locked ? "disabled" : ""}>
+              <button class="pick-option" type="button" data-outcome-pick="away" ${match.locked ? "disabled" : ""} title="IÅ¡saugoti baigtÄ¯: ${safe(match.away)} laimÄ—s">
                 ${flagImg(match.away)}<span>${TEAM_CODES[match.away] || safe(match.away)}</span>
               </button>
             </div>
-            <div class="prediction-choice-title">Arba spėti tikslų rezultatą <span>7 tšk.</span></div>
+            <div class="prediction-choice-title">Arba spÄ—ti tikslÅ³ rezultatÄ… <span>7 tÅ¡k.</span></div>
             <div class="score-pick">
               <label><span>${TEAM_CODES[match.home] || safe(match.home)}</span><select name="homeScore" ${match.locked ? "disabled" : ""}>${scoreOptions()}</select></label>
               <span class="score-divider">:</span>
               <label><span>${TEAM_CODES[match.away] || safe(match.away)}</span><select name="awayScore" ${match.locked ? "disabled" : ""}>${scoreOptions()}</select></label>
             </div>
             <div class="row-actions">
-              <button class="primary" type="submit" data-save-mode="exact" ${match.locked ? "disabled" : ""}>Išsaugoti tikslų rezultatą</button>
+              <button class="primary" type="submit" data-save-mode="exact" ${match.locked ? "disabled" : ""}>IÅ¡saugoti tikslÅ³ rezultatÄ…</button>
             </div>
           </form>` : ""}
       </div>
@@ -317,10 +331,12 @@ function matchCard(match, editable) {
 }
 
 function attachPredictionForms() {
-  $$("[data-predict] .pick-option").forEach((button) => button.addEventListener("click", () => {
+  $$("[data-predict] [data-outcome-pick]").forEach((button) => button.addEventListener("click", async () => {
     const form = button.closest("[data-predict]");
-    const pick = button.dataset.pick;
-    savePrediction(form.dataset.predict, { predictionType: "outcome", outcome: pick });
+    const pick = button.dataset.outcomePick;
+    button.disabled = true;
+    const saved = await savePrediction(form.dataset.predict, { predictionType: "outcome", outcome: pick });
+    if (!saved) button.disabled = false;
   }));
   $$("[data-predict]").forEach((form) => form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -338,8 +354,10 @@ async function savePrediction(matchId, payload) {
       body: JSON.stringify({ matchId, ...payload }),
     });
     await loadState();
+    return true;
   } catch (error) {
     alert(error.message);
+    return false;
   }
 }
 
@@ -347,15 +365,15 @@ function renderPredictions() {
   const openMatches = current.matches.filter((match) => match.status !== "finished");
   $("#view").innerHTML = `
     <div class="grid">
-      <section class="panel span-8"><h3>Rungtynių spėjimai</h3><div class="match-list">${openMatches.length ? groupedMatches(openMatches, true) : `<p class="message">Šiuo metu nėra atvirų rungtynių.</p>`}</div></section>
+      <section class="panel span-8"><h3>RungtyniÅ³ spÄ—jimai</h3><div class="match-list">${openMatches.length ? groupedMatches(openMatches, true) : `<p class="message">Å iuo metu nÄ—ra atvirÅ³ rungtyniÅ³.</p>`}</div></section>
       <section class="panel span-4">
         <h3>Turnyro bonusai</h3>
         <form id="bonusForm" class="form">
           ${bonusField("semifinalist", "Pusfinalininkas", 10)}
           ${bonusField("finalist", "Finalininkas", 20)}
-          ${bonusField("champion", "Čempionas", 40)}
-          <button class="primary" type="submit">Išsaugoti bonusus</button>
-          <p class="message">Pasirinkus ir išsaugojus bonusą, jis užsirakina ir jo pakeisti nebegalima.</p>
+          ${bonusField("champion", "ÄŒempionas", 40)}
+          <button class="primary" type="submit">IÅ¡saugoti bonusus</button>
+          <p class="message">Pasirinkus ir iÅ¡saugojus bonusÄ…, jis uÅ¾sirakina ir jo pakeisti nebegalima.</p>
         </form>
       </section>
     </div>`;
@@ -371,12 +389,12 @@ function renderPredictions() {
 function bonusField(type, label, points) {
   const existing = current.bonusPredictions.find((item) => item.userId === current.user.id && item.type === type);
   const disabled = existing ? "disabled" : "";
-  return `<label>${label} · ${points} tšk.
+  return `<label>${label} Â· ${points} tÅ¡k.
     <select name="${type}" ${disabled}>
-      <option value="">Pasirink komandą</option>
+      <option value="">Pasirink komandÄ…</option>
       ${teamOptions(existing?.team)}
     </select>
-    ${existing ? `<span class="locked-note">Užrakinta: ${team(existing.team)}</span>` : ""}
+    ${existing ? `<span class="locked-note">UÅ¾rakinta: ${team(existing.team)}</span>` : ""}
   </label>`;
 }
 
@@ -387,16 +405,16 @@ function teamOptions(selected = "") {
 
 function renderMatches() {
   const openMatches = current.matches.filter((match) => match.status !== "finished");
-  $("#view").innerHTML = `<section class="panel"><h3>Visos rungtynės</h3><div class="match-list">${openMatches.length ? groupedMatches(openMatches, false) : `<p class="message">Visos importuotos rungtynės jau užbaigtos.</p>`}</div></section>`;
+  $("#view").innerHTML = `<section class="panel"><h3>Visos rungtynÄ—s</h3><div class="match-list">${openMatches.length ? groupedMatches(openMatches, false) : `<p class="message">Visos importuotos rungtynÄ—s jau uÅ¾baigtos.</p>`}</div></section>`;
 }
 
 function renderFinishedMatches() {
   const finished = current.matches.filter((match) => match.status === "finished").sort((a, b) => new Date(b.kickoffUtc) - new Date(a.kickoffUtc));
-  $("#view").innerHTML = `<section class="panel"><h3>Užbaigti mačai</h3><div class="match-list">${finished.length ? groupedMatches(finished, false) : `<p class="message">Užbaigtų mačų dar nėra.</p>`}</div></section>`;
+  $("#view").innerHTML = `<section class="panel"><h3>UÅ¾baigti maÄai</h3><div class="match-list">${finished.length ? groupedMatches(finished, false) : `<p class="message">UÅ¾baigtÅ³ maÄÅ³ dar nÄ—ra.</p>`}</div></section>`;
 }
 
 function renderLeaderboard() {
-  $("#view").innerHTML = `<section class="panel"><h3>Lyderių lentelė</h3><div class="table-wrap"><table><thead><tr><th>Vieta</th><th>Vartotojas</th><th>Taškai</th><th>Tikslūs rezultatai</th><th>Teisingos baigtys</th></tr></thead><tbody>${current.standings.map((user, index) => `<tr><td class="rank">#${index + 1}</td><td>${safe(user.username)}</td><td><b>${user.points}</b></td><td>${user.exact}</td><td>${user.winners}</td></tr>`).join("")}</tbody></table></div></section>`;
+  $("#view").innerHTML = `<section class="panel"><h3>LyderiÅ³ lentelÄ—</h3><div class="table-wrap"><table><thead><tr><th>Vieta</th><th>Vartotojas</th><th>TaÅ¡kai</th><th>TikslÅ«s rezultatai</th><th>Teisingos baigtys</th></tr></thead><tbody>${current.standings.map((user, index) => `<tr><td class="rank">#${index + 1}</td><td>${safe(user.username)}</td><td><b>${user.points}</b></td><td>${user.exact}</td><td>${user.winners}</td></tr>`).join("")}</tbody></table></div></section>`;
 }
 
 function renderStats() {
@@ -404,10 +422,10 @@ function renderStats() {
   const picks = current.predictions.filter((item) => item.userId === current.user.id);
   $("#view").innerHTML = `
     <div class="grid">
-      <div class="stat span-4"><strong>${user.points}</strong><small>Taškai</small></div>
-      <div class="stat span-4"><strong>${user.exact}</strong><small>Tikslūs rezultatai</small></div>
+      <div class="stat span-4"><strong>${user.points}</strong><small>TaÅ¡kai</small></div>
+      <div class="stat span-4"><strong>${user.exact}</strong><small>TikslÅ«s rezultatai</small></div>
       <div class="stat span-4"><strong>${user.winners}</strong><small>Teisingos baigtys</small></div>
-      <section class="panel span-12"><h3>Mano aktyvumas</h3><p class="message">Išsaugota spėjimų: <b>${picks.length}</b>. Bonusų taškai: <b>${user.bonus}</b>.</p></section>
+      <section class="panel span-12"><h3>Mano aktyvumas</h3><p class="message">IÅ¡saugota spÄ—jimÅ³: <b>${picks.length}</b>. BonusÅ³ taÅ¡kai: <b>${user.bonus}</b>.</p></section>
     </div>`;
 }
 
@@ -415,38 +433,38 @@ function renderRules() {
   $("#view").innerHTML = `
     <div class="grid">
       <section class="panel span-7">
-        <h3>Kaip žaisti</h3>
+        <h3>Kaip Å¾aisti</h3>
         <div class="rules-list">
-          <div class="rule-step"><b>1</b><span>Vienoje rungtynių kortelėje padarai vieną spėjimą.</span></div>
-          <div class="rule-step"><b>2</b><span>Gali rinktis vieną iš dviejų kelių: spėti tik baigtį arba spėti tikslų rezultatą.</span></div>
-          <div class="rule-step"><b>3</b><span>Baigtis reiškia: pirma komanda laimės, lygiosios arba antra komanda laimės. Už pataikymą gauni 2 taškus.</span></div>
-          <div class="rule-step"><b>4</b><span>Tikslus rezultatas reiškia, kad turi idealiai pataikyti skaičius, pvz. <b>2:1</b>. Už pataikymą gauni 7 taškus.</span></div>
-          <div class="rule-step"><b>5</b><span>Paspaudus išsaugoti, spėjimas užsirakina iš karto. Jei reikia taisyti iki rungtynių, reikia kreiptis į adminą.</span></div>
-          <div class="rule-step"><b>6</b><span>Po rungtynių adminas įveda galutinį rezultatą, o sistema automatiškai paskaičiuoja taškus.</span></div>
+          <div class="rule-step"><b>1</b><span>Vienoje rungtyniÅ³ kortelÄ—je padarai vienÄ… spÄ—jimÄ….</span></div>
+          <div class="rule-step"><b>2</b><span>Gali rinktis vienÄ… iÅ¡ dviejÅ³ keliÅ³: spÄ—ti tik baigtÄ¯ arba spÄ—ti tikslÅ³ rezultatÄ….</span></div>
+          <div class="rule-step"><b>3</b><span>Baigtis reiÅ¡kia: pirma komanda laimÄ—s, lygiosios arba antra komanda laimÄ—s. UÅ¾ pataikymÄ… gauni 2 taÅ¡kus.</span></div>
+          <div class="rule-step"><b>4</b><span>Tikslus rezultatas reiÅ¡kia, kad turi idealiai pataikyti skaiÄius, pvz. <b>2:1</b>. UÅ¾ pataikymÄ… gauni 7 taÅ¡kus.</span></div>
+          <div class="rule-step"><b>5</b><span>Paspaudus iÅ¡saugoti, spÄ—jimas uÅ¾sirakina iÅ¡ karto. Jei reikia taisyti iki rungtyniÅ³, reikia kreiptis Ä¯ adminÄ….</span></div>
+          <div class="rule-step"><b>6</b><span>Po rungtyniÅ³ adminas Ä¯veda galutinÄ¯ rezultatÄ…, o sistema automatiÅ¡kai paskaiÄiuoja taÅ¡kus.</span></div>
         </div>
       </section>
       <section class="panel span-5">
         <h3>Kas laimi</h3>
-        <p class="message">Lygą laimi vartotojas, surinkęs daugiausiai taškų. Jei taškų vienodai, aukščiau rodomas tas, kuris turi daugiau tiksliai atspėtų rezultatų. Tikslus rezultatas duoda 7 taškus, o ne 7+2.</p>
-        <div class="stat"><strong>#1</strong><small>Daugiausiai taškų lyderių lentelėje</small></div>
+        <p class="message">LygÄ… laimi vartotojas, surinkÄ™s daugiausiai taÅ¡kÅ³. Jei taÅ¡kÅ³ vienodai, aukÅ¡Äiau rodomas tas, kuris turi daugiau tiksliai atspÄ—tÅ³ rezultatÅ³. Tikslus rezultatas duoda 7 taÅ¡kus, o ne 7+2.</p>
+        <div class="stat"><strong>#1</strong><small>Daugiausiai taÅ¡kÅ³ lyderiÅ³ lentelÄ—je</small></div>
       </section>
       <section class="panel span-12">
-        <h3>Taškų sistema</h3>
+        <h3>TaÅ¡kÅ³ sistema</h3>
         <div class="score-rules">
-          ${ruleCard("7", "Tikslus rezultatas", "Spėjai 2:1, rungtynės baigėsi 2:1. Gauni 7 taškus.")}
-          ${ruleCard("2", "Teisinga baigtis", "Pasirinkai, kad Brazilija laimės, ir ji laimėjo. Tikslaus rezultato čia nereikia.")}
-          ${ruleCard("2", "Teisingos lygiosios", "Pasirinkai lygiosios, rungtynės baigėsi 2:2. Gauni 2 taškus.")}
-          ${ruleCard("0", "Nepataikyta", "Spėjai, kad pirma komanda laimės, bet laimėjo antra komanda arba buvo lygiosios.")}
+          ${ruleCard("7", "Tikslus rezultatas", "SpÄ—jai 2:1, rungtynÄ—s baigÄ—si 2:1. Gauni 7 taÅ¡kus.")}
+          ${ruleCard("2", "Teisinga baigtis", "Pasirinkai, kad Brazilija laimÄ—s, ir ji laimÄ—jo. Tikslaus rezultato Äia nereikia.")}
+          ${ruleCard("2", "Teisingos lygiosios", "Pasirinkai lygiosios, rungtynÄ—s baigÄ—si 2:2. Gauni 2 taÅ¡kus.")}
+          ${ruleCard("0", "Nepataikyta", "SpÄ—jai, kad pirma komanda laimÄ—s, bet laimÄ—jo antra komanda arba buvo lygiosios.")}
         </div>
       </section>
       <section class="panel span-12">
         <h3>Turnyro bonusai</h3>
         <div class="bonus-grid">
-          <div><b>10 tšk.</b><span>Pusfinalininkas</span></div>
-          <div><b>20 tšk.</b><span>Finalininkas</span></div>
-          <div><b>40 tšk.</b><span>Čempionas</span></div>
+          <div><b>10 tÅ¡k.</b><span>Pusfinalininkas</span></div>
+          <div><b>20 tÅ¡k.</b><span>Finalininkas</span></div>
+          <div><b>40 tÅ¡k.</b><span>ÄŒempionas</span></div>
         </div>
-        <p class="message">Bonusų pasirinkimai užsirakina po išsaugojimo ir jų pakeisti nebegalima.</p>
+        <p class="message">BonusÅ³ pasirinkimai uÅ¾sirakina po iÅ¡saugojimo ir jÅ³ pakeisti nebegalima.</p>
       </section>
     </div>`;
 }
@@ -463,34 +481,37 @@ function renderAdmin() {
         <h3>Sukurti / redaguoti rungtynes</h3>
         <form id="matchForm" class="form">
           <input type="hidden" name="id">
-          <label>Grupė / etapas<input name="group" required></label>
-          <label>Namų komanda<input name="home" required></label>
-          <label>Išvykos komanda<input name="away" required></label>
+          <label>GrupÄ— / etapas<input name="group" required></label>
+          <label>NamÅ³ komanda<input name="home" required></label>
+          <label>IÅ¡vykos komanda<input name="away" required></label>
           <label>Stadionas<input name="venue"></label>
-          <label>Pradžia<input name="kickoffUtc" type="datetime-local" required></label>
-          <button class="primary" type="submit">Išsaugoti rungtynes</button>
+          <label>PradÅ¾ia<input name="kickoffUtc" type="datetime-local" required></label>
+          <button class="primary" type="submit">IÅ¡saugoti rungtynes</button>
         </form>
       </section>
-      <section class="panel span-7"><h3>Rungtynių valdymas</h3><div class="table-wrap">${adminMatchesTable()}</div></section>
-      <section class="panel span-4"><h3>Užsiregistravę vartotojai</h3>${adminUsersPanel()}</section>
+      <section class="panel span-7"><h3>RungtyniÅ³ valdymas</h3><div class="table-wrap">${adminMatchesTable()}</div></section>
+      <section class="panel span-4"><h3>UÅ¾siregistravÄ™ vartotojai</h3>${adminUsersPanel()}</section>
       <section class="panel span-8"><h3>Vartotojo profilis</h3>${adminUserProfile()}</section>
-      <section class="panel span-6"><h3>Visų vartotojų spėjimai</h3><div class="table-wrap">${adminPredictionsTable()}</div></section>
-      <section class="panel span-6"><h3>Bonusų patvirtinimas</h3><div class="table-wrap">${adminBonusTable()}</div></section>
+      <section class="panel span-6"><h3>VisÅ³ vartotojÅ³ spÄ—jimai</h3><div class="table-wrap">${adminPredictionsTable()}</div></section>
+      <section class="panel span-6"><h3>BonusÅ³ patvirtinimas</h3><div class="table-wrap">${adminBonusTable()}</div></section>
       <section class="panel span-12">
         <div class="row-actions">
-          <button class="success" id="syncBtn" type="button">Importuoti / atnaujinti iš Sportmonks</button>
-          <button class="success" id="defaultCsvBtn" type="button">Importuoti paruoštą World Cup 2026 CSV</button>
-          <label class="ghost upload-btn">Įkelti CSV failą<input id="csvFile" type="file" accept=".csv,text/csv"></label>
-          <button class="success" id="demoMatchBtn" type="button">Sukurti testą Team A vs Team B 15:10</button>
-          <button class="success" id="recalcBtn" type="button">Perskaičiuoti taškus</button>
+          <button class="success" id="syncBtn" type="button">Importuoti / atnaujinti iÅ¡ Sportmonks</button>
+          <button class="success" id="defaultCsvBtn" type="button">Importuoti paruoÅ¡tÄ… World Cup 2026 CSV</button>
+          <label class="ghost upload-btn">Ä®kelti CSV failÄ…<input id="csvFile" type="file" accept=".csv,text/csv"></label>
+          <button class="success" id="recalcBtn" type="button">PerskaiÄiuoti taÅ¡kus</button>
           <button class="ghost" id="csvBtn" type="button">Eksportuoti CSV</button>
         </div>
-        <p class="message">Sync: ${safe(current.sync?.lastRunAt || "dar nevykdyta")} ${current.sync?.lastError ? `· Klaida: ${safe(current.sync.lastError)}` : ""}</p>
+        <p class="message">Sync: ${safe(current.sync?.lastRunAt || "dar nevykdyta")} ${current.sync?.lastError ? `Â· Klaida: ${safe(current.sync.lastError)}` : ""}</p>
       </section>
     </div>`;
   attachAdmin();
   adminClock = setInterval(() => {
-    if (routeName() === "admin" && current) renderAdmin();
+    if (routeName() !== "admin") return;
+    $$("[data-lock-iso]").forEach((node) => {
+      const iso = node.dataset.lockIso;
+      node.innerHTML = `<b>${lockAge(iso)}</b><small>${iso ? new Date(iso).toLocaleString("lt-LT") : "-"}</small>`;
+    });
   }, 1000);
 }
 
@@ -499,7 +520,7 @@ function adminUsersPanel() {
     <button class="admin-user-card ${selectedAdminUserId === user.id ? "active" : ""}" type="button" data-admin-user="${user.id}">
       <span>
         <b>${safe(user.username)}</b>
-        <small>${user.points} tšk. · ${user.exact} tikslūs · ${user.winners} baigtys</small>
+        <small>${user.points} tÅ¡k. Â· ${user.exact} tikslÅ«s Â· ${user.winners} baigtys</small>
       </span>
       <strong>#${current.standings.findIndex((item) => item.id === user.id) + 1}</strong>
     </button>`).join("")}</div>`;
@@ -507,25 +528,25 @@ function adminUsersPanel() {
 
 function adminUserProfile() {
   const user = current.standings.find((item) => item.id === selectedAdminUserId);
-  if (!user) return `<p class="message">Pasirink vartotoją.</p>`;
+  if (!user) return `<p class="message">Pasirink vartotojÄ….</p>`;
   const predictions = current.predictions.filter((prediction) => prediction.userId === user.id);
   const bonuses = current.bonusPredictions.filter((bonus) => bonus.userId === user.id && bonus.type !== "groupWinner");
   return `
     <div class="profile-head">
-      <div><b>${safe(user.username)}</b><span>${user.points} tšk. · ${predictions.length} spėj.</span></div>
-      <small>Adminas gali keisti arba ištrinti spėjimus, kai vartotojas paprašo korekcijos.</small>
+      <div><b>${safe(user.username)}</b><span>${user.points} tÅ¡k. Â· ${predictions.length} spÄ—j.</span></div>
+      <small>Adminas gali keisti arba iÅ¡trinti spÄ—jimus, kai vartotojas papraÅ¡o korekcijos.</small>
     </div>
     <div class="table-wrap">${adminPredictionsTable(user.id)}</div>
     <h4>Bonusai</h4>
     <div class="bonus-grid compact">
-      ${bonuses.length ? bonuses.map((bonus) => `<div><b>${safe(bonusLabel(bonus.type))}</b><span>${team(bonus.team)} · ${bonus.awarded ? "užskaityta" : "laukiama"}</span></div>`).join("") : `<p class="message">Bonusų dar nėra.</p>`}
+      ${bonuses.length ? bonuses.map((bonus) => `<div><b>${safe(bonusLabel(bonus.type))}</b><span>${team(bonus.team)} Â· ${bonus.awarded ? "uÅ¾skaityta" : "laukiama"}</span></div>`).join("") : `<p class="message">BonusÅ³ dar nÄ—ra.</p>`}
     </div>`;
 }
 
 function adminMatchesTable() {
-  return `<table><thead><tr><th>Rungtynės</th><th>Rezultatas</th><th>Veiksmai</th></tr></thead><tbody>${current.matches.map((match) => `
+  return `<table><thead><tr><th>RungtynÄ—s</th><th>Rezultatas</th><th>Veiksmai</th></tr></thead><tbody>${current.matches.map((match) => `
     <tr>
-      <td>${safe(match.group)}<br><b>${team(match.home)} - ${team(match.away)}</b><br><span class="meta">${new Date(match.kickoffUtc).toLocaleString("lt-LT")} · ${safe(match.status)}</span></td>
+      <td>${safe(match.group)}<br><b>${team(match.home)} - ${team(match.away)}</b><br><span class="meta">${new Date(match.kickoffUtc).toLocaleString("lt-LT")} Â· ${safe(match.status)}</span></td>
       <td><form class="row-actions result-form" data-result="${match.id}"><input name="homeScore" type="number" min="0" max="20" value="${match.homeScore ?? ""}"><input name="awayScore" type="number" min="0" max="20" value="${match.awayScore ?? ""}"><button class="primary" type="submit">Rezultatas</button></form></td>
       <td><button class="ghost" data-edit="${match.id}" type="button">Redaguoti</button></td>
     </tr>`).join("")}</tbody></table>`;
@@ -544,7 +565,7 @@ function adminPredictionsTable(userId = "") {
       <td>${adminPredictionControls(prediction)}</td>
     </tr>`;
   }).join("");
-  return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th><th>Užrakinta prieš</th><th>Admin</th></tr></thead><tbody>${rows || `<tr><td colspan="6">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
+  return `<table><thead><tr><th>Vartotojas</th><th>RungtynÄ—s</th><th>SpÄ—jimas</th><th>TaÅ¡kai</th><th>UÅ¾rakinta prieÅ¡</th><th>Admin</th></tr></thead><tbody>${rows || `<tr><td colspan="6">SpÄ—jimÅ³ dar nÄ—ra.</td></tr>`}</tbody></table>`;
 }
 
 function adminPredictionControls(prediction) {
@@ -572,11 +593,11 @@ function adminPredictionControls(prediction) {
 
 function adminBonusTable() {
   const rows = current.bonusPredictions.filter((bonus) => bonus.type !== "groupWinner").map((bonus) => `<tr><td>${safe(userName(bonus.userId))}</td><td>${safe(bonusLabel(bonus.type))}</td><td>${team(bonus.team)}</td><td><input type="checkbox" data-bonus="${bonus.id}" ${bonus.awarded ? "checked" : ""}></td></tr>`).join("");
-  return `<table><thead><tr><th>Vartotojas</th><th>Tipas</th><th>Komanda</th><th>Įvykdyta</th></tr></thead><tbody>${rows || `<tr><td colspan="4">Bonusų dar nėra.</td></tr>`}</tbody></table>`;
+  return `<table><thead><tr><th>Vartotojas</th><th>Tipas</th><th>Komanda</th><th>Ä®vykdyta</th></tr></thead><tbody>${rows || `<tr><td colspan="4">BonusÅ³ dar nÄ—ra.</td></tr>`}</tbody></table>`;
 }
 
 function bonusLabel(type) {
-  return { semifinalist: "Pusfinalininkas", finalist: "Finalininkas", champion: "Čempionas" }[type] || type;
+  return { semifinalist: "Pusfinalininkas", finalist: "Finalininkas", champion: "ÄŒempionas" }[type] || type;
 }
 
 function userName(userId) {
@@ -641,26 +662,6 @@ function attachAdmin() {
     await request("/api/admin/sync", { method: "POST", body: "{}" });
     await loadState();
   });
-  $("#demoMatchBtn").addEventListener("click", async () => {
-    const kickoff = new Date();
-    kickoff.setHours(15, 10, 0, 0);
-    const exists = current.matches.some((match) => match.home === "Team A" && match.away === "Team B" && new Date(match.kickoffUtc).toDateString() === kickoff.toDateString());
-    if (exists) {
-      alert("Testinis mačas šiandien jau sukurtas.");
-      return;
-    }
-    await request("/api/admin/matches", {
-      method: "POST",
-      body: JSON.stringify({
-        group: "Testas",
-        home: "Team A",
-        away: "Team B",
-        venue: "Testinis stadionas",
-        kickoffUtc: kickoff.toISOString(),
-      }),
-    });
-    await loadState();
-  });
   $("#defaultCsvBtn").addEventListener("click", async () => {
     const csv = await fetch("/world-cup-2026-fixtures.csv").then((response) => response.text());
     const result = await request("/api/admin/import-csv", { method: "POST", body: JSON.stringify({ csv }) });
@@ -691,7 +692,8 @@ function attachAdmin() {
 }
 
 window.addEventListener("hashchange", render);
-setInterval(() => {
-  if (token) loadState();
-}, 30000);
+stateTimer = setInterval(() => {
+  if (token && routeName() !== "admin") loadState();
+}, 60000);
 loadState();
+
