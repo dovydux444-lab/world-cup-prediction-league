@@ -122,16 +122,13 @@ function scorePrediction(match, prediction) {
   const pickDiff = pickHome - pickAway;
   const actualSign = Math.sign(actualDiff);
   const pickSign = Math.sign(pickDiff);
-  if (actualHome === pickHome && actualAway === pickAway) return { points: 10, exact: 1, winner: 1 };
-  if (actualSign !== 0 && actualSign === pickSign && actualDiff === pickDiff) return { points: 5, exact: 0, winner: 1 };
-  if (actualSign !== 0 && actualSign === pickSign) return { points: 3, exact: 0, winner: 1 };
-  if (actualSign === 0 && pickSign === 0) return { points: 1, exact: 0, winner: 0 };
-  if (actualHome === pickHome || actualAway === pickAway) return { points: 2, exact: 0, winner: 0 };
+  if (actualHome === pickHome && actualAway === pickAway) return { points: 7, exact: 1, winner: 1 };
+  if (actualSign === pickSign) return { points: 2, exact: 0, winner: 1 };
   return { points: 0, exact: 0, winner: 0 };
 }
 
 function bonusPoints(bonus) {
-  const values = { groupWinner: 5, semifinalist: 10, finalist: 20, champion: 40 };
+  const values = { semifinalist: 10, finalist: 20, champion: 40 };
   return bonus.awarded ? values[bonus.type] || 0 : 0;
 }
 
@@ -292,12 +289,11 @@ async function routeApi(req, res, pathname) {
 
   if (pathname === "/api/bonus" && req.method === "POST") {
     const body = await readJson(req);
-    ["groupWinner", "semifinalist", "finalist", "champion"].forEach((type) => {
+    ["semifinalist", "finalist", "champion"].forEach((type) => {
       const team = String(body[type] || "").trim();
       const existing = db.bonusPredictions.find((item) => item.userId === user.id && item.type === type);
-      if (!team && existing) db.bonusPredictions = db.bonusPredictions.filter((item) => item !== existing);
-      else if (team && existing) existing.team = team;
-      else if (team) db.bonusPredictions.push({ id: id(), userId: user.id, type, team, awarded: false });
+      if (existing) return;
+      if (team) db.bonusPredictions.push({ id: id(), userId: user.id, type, team, awarded: false });
     });
     await saveDb();
     return sendJson(res, 200, { ok: true });
@@ -352,7 +348,7 @@ async function routeApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true });
   }
   if (pathname === "/api/admin/csv" && req.method === "GET") {
-    const lines = [["vieta", "vartotojas", "taskai", "tikslus_rezultatai", "teisingi_nugaletojai"]];
+    const lines = [["vieta", "vartotojas", "taskai", "tikslus_rezultatai", "teisingos_baigtys"]];
     standings().forEach((item, index) => lines.push([index + 1, item.username, item.points, item.exact, item.winners]));
     const csv = lines.map((row) => row.map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
     res.writeHead(200, { "content-type": "text/csv; charset=utf-8", "content-disposition": "attachment; filename=world-cup-leaderboard.csv" });

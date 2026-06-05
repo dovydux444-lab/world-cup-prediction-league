@@ -92,16 +92,13 @@ function scorePrediction(match, prediction) {
   const pickDiff = pickHome - pickAway;
   const actualSign = Math.sign(actualDiff);
   const pickSign = Math.sign(pickDiff);
-  if (actualHome === pickHome && actualAway === pickAway) return { points: 10, exact: 1, winner: 1 };
-  if (actualSign !== 0 && actualSign === pickSign && actualDiff === pickDiff) return { points: 5, exact: 0, winner: 1 };
-  if (actualSign !== 0 && actualSign === pickSign) return { points: 3, exact: 0, winner: 1 };
-  if (actualSign === 0 && pickSign === 0) return { points: 1, exact: 0, winner: 0 };
-  if (actualHome === pickHome || actualAway === pickAway) return { points: 2, exact: 0, winner: 0 };
+  if (actualHome === pickHome && actualAway === pickAway) return { points: 7, exact: 1, winner: 1 };
+  if (actualSign === pickSign) return { points: 2, exact: 0, winner: 1 };
   return { points: 0, exact: 0, winner: 0 };
 }
 
 function bonusPoints(bonus) {
-  const values = { groupWinner: 5, semifinalist: 10, finalist: 20, champion: 40 };
+  const values = { semifinalist: 10, finalist: 20, champion: 40 };
   return bonus.awarded ? values[bonus.type] || 0 : 0;
 }
 
@@ -406,10 +403,10 @@ exports.handler = async (event) => {
     }
 
     if (pathname === "/bonus" && method === "POST") {
-      await Promise.all(["groupWinner", "semifinalist", "finalist", "champion"].map(async (type) => {
+      await Promise.all(["semifinalist", "finalist", "champion"].map(async (type) => {
         const team = String(body[type] || "").trim();
         const existing = await one(`bonus_predictions?user_id=eq.${user.id}&type=eq.${type}&select=id`);
-        if (!team && existing) return supabase(`bonus_predictions?id=eq.${existing.id}`, { method: "DELETE" });
+        if (existing) return null;
         if (!team) return null;
         return supabase("bonus_predictions?on_conflict=user_id,type", {
           method: "POST",
@@ -461,7 +458,7 @@ exports.handler = async (event) => {
 
     if (pathname === "/admin/csv" && method === "GET") {
       const state = await getState(user);
-      const lines = [["vieta", "vartotojas", "taskai", "tikslus_rezultatai", "teisingi_nugaletojai"]];
+      const lines = [["vieta", "vartotojas", "taskai", "tikslus_rezultatai", "teisingos_baigtys"]];
       state.standings.forEach((item, index) => lines.push([index + 1, item.username, item.points, item.exact, item.winners]));
       const csv = lines.map((row) => row.map((cell) => `"${String(cell).replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
       return text(200, csv, "text/csv; charset=utf-8", { "content-disposition": "attachment; filename=world-cup-leaderboard.csv" });

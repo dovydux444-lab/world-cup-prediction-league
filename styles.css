@@ -576,6 +576,99 @@ th {
 .error { color: #ff9aa8; }
 .ok { color: #90f0bb; }
 
+.rules-list {
+  display: grid;
+  gap: 10px;
+}
+
+.rule-step {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255,255,255,.055);
+}
+
+.rule-step > b {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #071016;
+  background: linear-gradient(135deg, var(--gold), var(--teal));
+}
+
+.rule-step span { color: #dbe7f4; line-height: 1.45; }
+
+.score-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.rule-card {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(248,198,90,.1), rgba(53,208,186,.055)),
+    rgba(255,255,255,.045);
+}
+
+.rule-card > strong {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 8px;
+  color: var(--gold);
+  background: rgba(0,0,0,.22);
+  font-size: 24px;
+  border: 1px solid rgba(248,198,90,.24);
+}
+
+.rule-card p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.bonus-grid div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(53,208,186,.24);
+  background: rgba(53,208,186,.07);
+}
+
+.bonus-grid b { color: var(--teal); font-size: 22px; }
+.bonus-grid span { color: #dbe7f4; }
+
+.locked-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #dbe7f4;
+  background: rgba(248,198,90,.08);
+  border: 1px solid rgba(248,198,90,.18);
+}
+
 @media (max-width: 920px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar {
