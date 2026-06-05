@@ -168,6 +168,8 @@ async function getState(user) {
       points: prediction.points,
       exact: prediction.exact,
       winner: prediction.winner,
+      createdAt: prediction.created_at,
+      updatedAt: prediction.updated_at,
     })),
     bonusPredictions: bonuses.map((bonus) => ({
       id: bonus.id,

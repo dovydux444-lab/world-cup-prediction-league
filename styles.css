@@ -596,6 +596,92 @@ input:focus, select:focus {
   min-height: 38px;
 }
 
+.lock-time {
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+}
+
+.lock-time b {
+  color: var(--gold);
+  font-size: 14px;
+}
+
+.lock-time small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.admin-user-list {
+  display: grid;
+  gap: 9px;
+}
+
+.admin-user-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255,255,255,.055);
+  text-align: left;
+}
+
+.admin-user-card.active {
+  border-color: rgba(248,198,90,.62);
+  background: linear-gradient(135deg, rgba(248,198,90,.16), rgba(53,208,186,.08));
+}
+
+.admin-user-card span {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-user-card small,
+.profile-head small {
+  color: var(--muted);
+}
+
+.admin-user-card strong {
+  color: var(--gold);
+}
+
+.profile-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(53,208,186,.22);
+  border-radius: 8px;
+  background: rgba(53,208,186,.07);
+}
+
+.profile-head div {
+  display: grid;
+  gap: 5px;
+}
+
+.profile-head b {
+  font-size: 20px;
+}
+
+.profile-head span {
+  color: var(--gold);
+  font-weight: 850;
+}
+
+.bonus-grid.compact {
+  margin-top: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
 .score-divider {
   align-self: end;
   display: grid;

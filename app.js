@@ -4,6 +4,8 @@ const tokenKey = "wcPredictionLeague.token";
 let token = localStorage.getItem(tokenKey) || "";
 let current = null;
 let authMode = "login";
+let selectedAdminUserId = "";
+let adminClock = null;
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -110,6 +112,10 @@ function routeName() {
 }
 
 function render() {
+  if (adminClock) {
+    clearInterval(adminClock);
+    adminClock = null;
+  }
   const route = routeName();
   const titles = { login: "Prisijungimas", predictions: "Mano spėjimai", matches: "Visų rungtynių sąrašas", finished: "Užbaigti mačai", leaderboard: "Lyderių lentelė", stats: "Mano statistika", rules: "Taisyklės", admin: "Admin panelė" };
   $("#pageTitle").textContent = titles[route] || titles.predictions;
@@ -212,6 +218,23 @@ function predictionText(prediction, match) {
     return `Baigtis: ${labels[prediction.outcome] || "-"}`;
   }
   return `Tikslus rezultatas: ${prediction.homeScore}:${prediction.awayScore}`;
+}
+
+function lockAge(iso) {
+  if (!iso) return "-";
+  let seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  const days = Math.floor(seconds / 86400);
+  seconds -= days * 86400;
+  const hours = Math.floor(seconds / 3600);
+  seconds -= hours * 3600;
+  const minutes = Math.floor(seconds / 60);
+  seconds -= minutes * 60;
+  return `${days}d ${hours}val ${minutes}min ${seconds}s`;
+}
+
+function lockTime(prediction) {
+  const iso = prediction.createdAt || prediction.updatedAt;
+  return `<span class="lock-time"><b>${lockAge(iso)}</b><small>${iso ? new Date(iso).toLocaleString("lt-LT") : "-"}</small></span>`;
 }
 
 function formatMatchDate(iso) {
@@ -433,6 +456,7 @@ function ruleCard(points, title, example) {
 }
 
 function renderAdmin() {
+  if (!selectedAdminUserId && current.standings.length) selectedAdminUserId = current.standings[0].id;
   $("#view").innerHTML = `
     <div class="grid">
       <section class="panel span-5">
@@ -448,6 +472,8 @@ function renderAdmin() {
         </form>
       </section>
       <section class="panel span-7"><h3>Rungtynių valdymas</h3><div class="table-wrap">${adminMatchesTable()}</div></section>
+      <section class="panel span-4"><h3>Užsiregistravę vartotojai</h3>${adminUsersPanel()}</section>
+      <section class="panel span-8"><h3>Vartotojo profilis</h3>${adminUserProfile()}</section>
       <section class="panel span-6"><h3>Visų vartotojų spėjimai</h3><div class="table-wrap">${adminPredictionsTable()}</div></section>
       <section class="panel span-6"><h3>Bonusų patvirtinimas</h3><div class="table-wrap">${adminBonusTable()}</div></section>
       <section class="panel span-12">
@@ -455,6 +481,7 @@ function renderAdmin() {
           <button class="success" id="syncBtn" type="button">Importuoti / atnaujinti iš Sportmonks</button>
           <button class="success" id="defaultCsvBtn" type="button">Importuoti paruoštą World Cup 2026 CSV</button>
           <label class="ghost upload-btn">Įkelti CSV failą<input id="csvFile" type="file" accept=".csv,text/csv"></label>
+          <button class="success" id="demoMatchBtn" type="button">Sukurti testą Team A vs Team B 15:10</button>
           <button class="success" id="recalcBtn" type="button">Perskaičiuoti taškus</button>
           <button class="ghost" id="csvBtn" type="button">Eksportuoti CSV</button>
         </div>
@@ -462,6 +489,37 @@ function renderAdmin() {
       </section>
     </div>`;
   attachAdmin();
+  adminClock = setInterval(() => {
+    if (routeName() === "admin" && current) renderAdmin();
+  }, 1000);
+}
+
+function adminUsersPanel() {
+  return `<div class="admin-user-list">${current.standings.map((user) => `
+    <button class="admin-user-card ${selectedAdminUserId === user.id ? "active" : ""}" type="button" data-admin-user="${user.id}">
+      <span>
+        <b>${safe(user.username)}</b>
+        <small>${user.points} tšk. · ${user.exact} tikslūs · ${user.winners} baigtys</small>
+      </span>
+      <strong>#${current.standings.findIndex((item) => item.id === user.id) + 1}</strong>
+    </button>`).join("")}</div>`;
+}
+
+function adminUserProfile() {
+  const user = current.standings.find((item) => item.id === selectedAdminUserId);
+  if (!user) return `<p class="message">Pasirink vartotoją.</p>`;
+  const predictions = current.predictions.filter((prediction) => prediction.userId === user.id);
+  const bonuses = current.bonusPredictions.filter((bonus) => bonus.userId === user.id && bonus.type !== "groupWinner");
+  return `
+    <div class="profile-head">
+      <div><b>${safe(user.username)}</b><span>${user.points} tšk. · ${predictions.length} spėj.</span></div>
+      <small>Adminas gali keisti arba ištrinti spėjimus, kai vartotojas paprašo korekcijos.</small>
+    </div>
+    <div class="table-wrap">${adminPredictionsTable(user.id)}</div>
+    <h4>Bonusai</h4>
+    <div class="bonus-grid compact">
+      ${bonuses.length ? bonuses.map((bonus) => `<div><b>${safe(bonusLabel(bonus.type))}</b><span>${team(bonus.team)} · ${bonus.awarded ? "užskaityta" : "laukiama"}</span></div>`).join("") : `<p class="message">Bonusų dar nėra.</p>`}
+    </div>`;
 }
 
 function adminMatchesTable() {
@@ -473,18 +531,20 @@ function adminMatchesTable() {
     </tr>`).join("")}</tbody></table>`;
 }
 
-function adminPredictionsTable() {
-  const rows = current.predictions.map((prediction) => {
+function adminPredictionsTable(userId = "") {
+  const source = userId ? current.predictions.filter((prediction) => prediction.userId === userId) : current.predictions;
+  const rows = source.map((prediction) => {
     const match = current.matches.find((item) => item.id === prediction.matchId);
     return `<tr>
       <td>${safe(userName(prediction.userId))}</td>
       <td>${team(match?.home)} - ${team(match?.away)}</td>
       <td>${predictionText(prediction, match)}</td>
       <td>${prediction.points || 0}</td>
+      <td>${lockTime(prediction)}</td>
       <td>${adminPredictionControls(prediction)}</td>
     </tr>`;
   }).join("");
-  return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th><th>Admin</th></tr></thead><tbody>${rows || `<tr><td colspan="5">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
+  return `<table><thead><tr><th>Vartotojas</th><th>Rungtynės</th><th>Spėjimas</th><th>Taškai</th><th>Užrakinta prieš</th><th>Admin</th></tr></thead><tbody>${rows || `<tr><td colspan="6">Spėjimų dar nėra.</td></tr>`}</tbody></table>`;
 }
 
 function adminPredictionControls(prediction) {
@@ -524,6 +584,10 @@ function userName(userId) {
 }
 
 function attachAdmin() {
+  $$("[data-admin-user]").forEach((button) => button.addEventListener("click", () => {
+    selectedAdminUserId = button.dataset.adminUser;
+    renderAdmin();
+  }));
   $("#matchForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -575,6 +639,26 @@ function attachAdmin() {
   }));
   $("#syncBtn").addEventListener("click", async () => {
     await request("/api/admin/sync", { method: "POST", body: "{}" });
+    await loadState();
+  });
+  $("#demoMatchBtn").addEventListener("click", async () => {
+    const kickoff = new Date();
+    kickoff.setHours(15, 10, 0, 0);
+    const exists = current.matches.some((match) => match.home === "Team A" && match.away === "Team B" && new Date(match.kickoffUtc).toDateString() === kickoff.toDateString());
+    if (exists) {
+      alert("Testinis mačas šiandien jau sukurtas.");
+      return;
+    }
+    await request("/api/admin/matches", {
+      method: "POST",
+      body: JSON.stringify({
+        group: "Testas",
+        home: "Team A",
+        away: "Team B",
+        venue: "Testinis stadionas",
+        kickoffUtc: kickoff.toISOString(),
+      }),
+    });
     await loadState();
   });
   $("#defaultCsvBtn").addEventListener("click", async () => {
